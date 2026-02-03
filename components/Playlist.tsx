@@ -12,6 +12,7 @@ interface PlaylistProps {
   onNavigate: (folderId: string | null) => void;
   onMoveTrack: (trackId: string, folderId: string | null) => void;
   onReorderTrack: (sourceId: string, targetId: string) => void;
+  onDeleteTrack: (trackId: string) => void;
 }
 
 const Playlist: React.FC<PlaylistProps> = ({ 
@@ -24,7 +25,8 @@ const Playlist: React.FC<PlaylistProps> = ({
     onCreateFolder,
     onNavigate,
     onMoveTrack,
-    onReorderTrack
+    onReorderTrack,
+    onDeleteTrack
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -203,6 +205,19 @@ const Playlist: React.FC<PlaylistProps> = ({
                            <div className="w-0.5 bg-app-accent animate-[bounce_0.8s_infinite] h-1.5"></div>
                        </div>
                    )}
+
+                   {/* Delete Button */}
+                   <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteTrack(track.id);
+                        }}
+                        className="ml-2 p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100"
+                        title="삭제"
+                        aria-label="Delete track"
+                   >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                   </button>
                 </div>
               );
           })}

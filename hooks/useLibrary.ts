@@ -93,6 +93,24 @@ export const useLibrary = () => {
     });
   }, []);
 
+  const handleDeleteTrack = useCallback(async (trackId: string) => {
+      if (!window.confirm("정말 이 음악 파일을 삭제하시겠습니까?")) return;
+      
+      try {
+          // 1. Remove from Storage
+          await storageService.deleteFile(trackId);
+          
+          // 2. Remove from State
+          setTracks(prev => prev.filter(t => t.id !== trackId));
+          
+          // 3. Clean up cache in audioService if it exists
+          audioService.clearCache(trackId);
+      } catch (e) {
+          console.error("Failed to delete track:", e);
+          alert("파일 삭제 중 오류가 발생했습니다.");
+      }
+  }, []);
+
   return {
     folders,
     tracks,
@@ -102,6 +120,7 @@ export const useLibrary = () => {
     handleCreateFolder,
     handleFilesAdded,
     handleTrackMove,
-    handleReorderTrack
+    handleReorderTrack,
+    handleDeleteTrack
   };
 };

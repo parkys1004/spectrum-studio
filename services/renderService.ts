@@ -124,7 +124,10 @@ class RenderService {
 
     const videoEncoder = new VideoEncoder({
         output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-        error: (e) => { console.error("VideoEncoder Error", e); this.hasEncoderError = true; }
+        error: (e) => { 
+            console.error("VideoEncoder Error", e); 
+            this.hasEncoderError = true; 
+        }
     }) as VideoEncoderWithState;
 
     // Codec configuration with fallback
@@ -142,7 +145,10 @@ class RenderService {
 
     const audioEncoder = new AudioEncoder({
         output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-        error: (e) => { console.error("AudioEncoder Error", e); this.hasEncoderError = true; }
+        error: (e) => { 
+            console.error("AudioEncoder Error", e); 
+            this.hasEncoderError = true; 
+        }
     });
 
     audioEncoder.configure({
@@ -198,10 +204,13 @@ class RenderService {
         } catch(e) {}
     }
 
-    // 5. Render Processor (Recursive)
+    // 5. Render Processor (Lookahead Scheduling)
     const totalFrames = Math.ceil(totalDuration * fps);
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     
+    // LOOKAHEAD: Schedule this many frames ahead to prevent race conditions
+    const LOOKAHEAD = 10; 
+
     const renderSpectrum = (context: OffscreenCanvasRenderingContext2D) => {
          switch (visualizerMode) {
             case VisualizerMode.BARS: drawBars(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
@@ -219,20 +228,18 @@ class RenderService {
     };
 
     try {
-        // Recursive Frame Processor
-        // This pattern ensures we schedule the next suspend ONLY when we are currently suspended at 'time'.
-        // This prevents the audio context from running ahead of our frames.
         const processFrame = async (i: number) => {
             if (signal.aborted || this.hasEncoderError) return;
 
-            // Backpressure Control (Async wait while Context is paused)
+            // Backpressure: Wait if encoder is busy
             if (videoEncoder.encodeQueueSize > 15) {
                 await new Promise(r => setTimeout(r, 10));
             }
             
-            // UI Yield
+            // UI Yield: keep interface responsive
             if (i % 30 === 0) {
                 onProgress(i, totalFrames, `렌더링 진행률 ${Math.round((i/totalFrames)*100)}%`);
+                // Allow UI to breathe
                 await new Promise(r => setTimeout(r, 0));
             }
 
@@ -344,31 +351,53 @@ class RenderService {
 
             // Encode Video Frame
             const frame = new VideoFrame(canvas, { timestamp: i * (1_000_000 / fps) });
-            videoEncoder.encode(frame, { keyFrame: i % 60 === 0 });
+            try {
+                videoEncoder.encode(frame, { keyFrame: i % 60 === 0 });
+            } catch(e) {
+                console.error("Frame encoding failed", e);
+                this.hasEncoderError = true;
+            }
             frame.close();
 
-            // CRITICAL: Schedule NEXT suspend BEFORE resuming current
-            if (i < totalFrames - 1) {
-                offlineCtx.suspend((i + 1) / fps).then(() => processFrame(i + 1));
+            // CRITICAL: LOOKAHEAD SCHEDULING
+            if (i + LOOKAHEAD < totalFrames) {
+                const nextTime = (i + LOOKAHEAD) / fps;
+                offlineCtx.suspend(nextTime)
+                    .then(() => processFrame(i + LOOKAHEAD))
+                    .catch(err => console.warn("Suspend scheduling failed, possibly finished:", err));
             }
 
             // Advance Context
-            offlineCtx.resume();
+            try {
+                offlineCtx.resume();
+            } catch(e) {
+                // Ignore resume errors at the very end
+            }
         };
 
         // --- Execution Start ---
         onProgress(0, totalFrames, "영상 프레임 렌더링 중...");
 
-        // 1. Schedule first frame at 0
-        offlineCtx.suspend(0).then(() => processFrame(0));
+        // 1. Initial Schedule: Queue up the first few frames (Lookahead buffer)
+        const initLimit = Math.min(totalFrames, LOOKAHEAD);
+        for (let i = 0; i < initLimit; i++) {
+            offlineCtx.suspend(i / fps)
+                .then(() => processFrame(i))
+                .catch(err => console.warn("Initial suspend failed:", err));
+        }
 
-        // 2. Start Audio Engine (This returns promise resolving when audio completes)
+        // 2. Start Audio Engine
         const renderedBuffer = await offlineCtx.startRendering();
 
         // 3. Audio Completed - Finalize
-        onProgress(totalFrames, totalFrames, "오디오 믹싱 완료 대기 중...");
+        // At this point, audio mixing is DONE. We are waiting for Video Encoder to flush.
+        onProgress(totalFrames, totalFrames, "비디오 인코딩 정리 중 (Finalizing)...");
         
-        await videoEncoder.flush();
+        if (!this.hasEncoderError) {
+             await videoEncoder.flush();
+        } else {
+             console.warn("Skipping flush due to encoder error, finalizing partial video.");
+        }
         videoEncoder.close();
 
         onProgress(totalFrames, totalFrames, "최종 파일 생성 중...");
@@ -383,9 +412,12 @@ class RenderService {
             timestamp: 0,
             data: interleavedAudio
         });
-        audioEncoder.encode(audioData);
-        audioData.close();
-        await audioEncoder.flush();
+        
+        if (!this.hasEncoderError) {
+             audioEncoder.encode(audioData);
+             audioData.close();
+             await audioEncoder.flush();
+        }
         audioEncoder.close();
 
         muxer.finalize();

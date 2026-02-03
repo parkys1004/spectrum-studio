@@ -18,7 +18,8 @@ const App: React.FC = () => {
   const { 
       folders, tracks, currentFolderId, 
       setCurrentFolderId, setTracks,
-      handleCreateFolder, handleFilesAdded, handleTrackMove, handleReorderTrack
+      handleCreateFolder, handleFilesAdded, handleTrackMove, handleReorderTrack,
+      handleDeleteTrack
   } = useLibrary();
 
   // 2. Visualizer Settings State (Central Source of Truth)
@@ -167,6 +168,7 @@ const App: React.FC = () => {
                   onNavigate={setCurrentFolderId}
                   onMoveTrack={handleTrackMove}
                   onReorderTrack={handleReorderTrack}
+                  onDeleteTrack={handleDeleteTrack}
                 />
             </div>
         </BentoBox>
