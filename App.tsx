@@ -87,7 +87,7 @@ const App: React.FC = () => {
   const isExporting = exporter.isExporting;
 
   return (
-    <div className="min-h-screen bg-app-bg text-app-text font-sans selection:bg-app-accent selection:text-black flex flex-col h-screen overflow-hidden">
+    <div className="min-h-screen bg-transparent text-app-text font-sans selection:bg-app-accent selection:text-black flex flex-col h-screen overflow-hidden">
       
       <Modal 
         isOpen={exporter.showExportModal} 
@@ -152,7 +152,7 @@ const App: React.FC = () => {
         
         {/* Column 1: Playlist (2/12) */}
         <BentoBox 
-            className="col-span-1 lg:col-span-2 h-full order-1" 
+            className="col-span-1 lg:col-span-2 h-full order-1 animate-slideUp stagger-1 opacity-0" 
             title="미디어"
         >
             <div className={`h-full ${isExporting ? "opacity-50 pointer-events-none" : ""}`}>
@@ -173,7 +173,7 @@ const App: React.FC = () => {
 
         {/* Column 2: Presets & Effects (2/12) */}
         <BentoBox
-            className="col-span-1 lg:col-span-2 h-full order-2"
+            className="col-span-1 lg:col-span-2 h-full order-2 animate-slideUp stagger-2 opacity-0"
             title="프리셋 & 효과"
         >
             <div className={`h-full ${isExporting ? "opacity-50 pointer-events-none" : ""}`}>
@@ -191,7 +191,7 @@ const App: React.FC = () => {
             
             {/* Top: Visualizer */}
             <BentoBox 
-                className="flex-1 min-h-0 bg-black border-app-accent/20 shadow-2xl relative group"
+                className="flex-1 min-h-0 bg-black border-app-accent/20 shadow-neon relative group animate-slideUp stagger-3 opacity-0"
                 title={isExporting ? `렌더링 상태` : `프로그램: ${audioPlayer.currentTrack ? audioPlayer.currentTrack.name : '대기 중'}`}
                 headerRight={
                     <button 
@@ -200,7 +200,7 @@ const App: React.FC = () => {
                         className={`flex items-center space-x-2 px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all tracking-tight border shadow-md ${
                             isExporting 
                             ? 'bg-red-600 border-red-500 text-white animate-pulse' 
-                            : 'bg-app-accent text-black border-blue-400 hover:bg-white hover:border-white'
+                            : 'bg-app-accent text-black border-blue-400 hover:bg-white hover:border-white shadow-[0_0_10px_rgba(62,166,255,0.4)]'
                         }`}
                     >
                         <div className={`w-1.5 h-1.5 rounded-full ${isExporting ? 'bg-white' : 'bg-black'}`}></div>
@@ -245,7 +245,7 @@ const App: React.FC = () => {
 
             {/* Bottom: Timeline (Fixed Height) */}
             <BentoBox 
-                className="h-[280px] shrink-0" 
+                className="h-[280px] shrink-0 animate-slideUp stagger-4 opacity-0" 
                 title={`타임라인: ${audioPlayer.currentTrack ? audioPlayer.currentTrack.name : '없음'}`}
             >
                  <div className={`h-full ${isExporting ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -267,7 +267,7 @@ const App: React.FC = () => {
 
         {/* Column 4: Effect Controls (3/12) */}
         <BentoBox 
-            className="col-span-1 lg:col-span-3 h-full order-4" 
+            className="col-span-1 lg:col-span-3 h-full order-4 animate-slideUp stagger-4 opacity-0" 
             title="속성 (Properties)"
         >
              <div className={`h-full overflow-y-auto custom-scrollbar ${isExporting ? 'opacity-50 pointer-events-none' : ''}`}>
