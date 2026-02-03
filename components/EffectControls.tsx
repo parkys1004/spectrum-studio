@@ -33,13 +33,19 @@ const EffectControls: React.FC<EffectControlsProps> = ({
       handleVisualChange(key, url);
   };
 
-  return (
-    <div className="flex flex-col min-h-full bg-[#121212]">
-      {/* Visualizer Effects Section */}
-      <div className="px-4 py-3 bg-black/20 border-b border-white/5 text-[10px] text-gray-400 font-bold uppercase tracking-[0.15em] flex items-center shadow-inner-light select-none">
-         상세 설정 (PARAMETERS)
+  const SectionTitle = ({ label }: { label: string }) => (
+      <div className="px-6 py-4 mt-2 mb-2 text-xs text-app-textMuted font-bold uppercase tracking-[0.2em] flex items-center select-none">
+         <div className="w-2.5 h-2.5 rounded-full bg-gray-300 mr-2"></div>
+         {label}
       </div>
-      <div className="p-0">
+  );
+
+  return (
+    <div className="flex flex-col min-h-full bg-app-bg pb-6">
+      
+      {/* Visualizer Effects Section */}
+      <SectionTitle label="기본 설정 (PARAMETERS)" />
+      <div className="px-2">
          <ColorRow 
             label="테마 색상"
             value={visualizerSettings.color}
@@ -70,7 +76,7 @@ const EffectControls: React.FC<EffectControlsProps> = ({
             onChange={(v) => handleVisualChange('positionY', v)}
          />
          <PropertyRow
-            label="선 두께/간격"
+            label="선 두께"
             value={visualizerSettings.lineThickness}
             min={1}
             max={20}
@@ -97,12 +103,10 @@ const EffectControls: React.FC<EffectControlsProps> = ({
       </div>
 
        {/* Effect Fine-Tuning Section */}
-       <div className="px-4 py-3 bg-black/20 border-b border-white/5 border-t border-t-white/5 text-[10px] text-gray-400 font-bold uppercase tracking-[0.15em] shadow-inner-light select-none">
-        효과 상세 설정 (FX DETAILS)
-      </div>
-      <div className="p-0">
+       <SectionTitle label="효과 상세 (FX DETAILS)" />
+      <div className="px-2">
         <PropertyRow
-            label="속도 (SPEED)"
+            label="속도"
             value={visualizerSettings.effectParams.speed}
             min={0.1}
             max={3.0}
@@ -138,10 +142,8 @@ const EffectControls: React.FC<EffectControlsProps> = ({
       </div>
 
       {/* Assets Section */}
-      <div className="px-4 py-3 bg-black/20 border-b border-white/5 border-t border-t-white/5 text-[10px] text-gray-400 font-bold uppercase tracking-[0.15em] shadow-inner-light select-none">
-        오버레이 (OVERLAYS)
-      </div>
-      <div className="p-0">
+      <SectionTitle label="오버레이 (OVERLAYS)" />
+      <div className="px-2">
         <ImageUploadRow 
             label="배경 이미지"
             currentImage={visualizerSettings.backgroundImage}
@@ -149,20 +151,20 @@ const EffectControls: React.FC<EffectControlsProps> = ({
             onRemove={() => handleVisualChange('backgroundImage', null)}
         />
         <ImageUploadRow 
-            label="로고 / 워터마크"
+            label="로고"
             currentImage={visualizerSettings.logoImage}
             onUpload={(file) => handleImageUpload('logoImage', file)}
             onRemove={() => handleVisualChange('logoImage', null)}
         />
-        {/* Logo Transformations (Only if logo exists) */}
+        {/* Logo Transformations */}
         {visualizerSettings.logoImage && (
-            <div className="bg-black/20 border-t border-dashed border-white/10 pb-2">
-                 <div className="px-4 py-2 text-[9px] text-app-accent font-semibold flex items-center mb-1">
-                    <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-                    로고 설정 (LOGO TRANSFORM)
+            <div className="mx-4 mb-4 p-3 rounded-xl bg-app-bg shadow-neu-pressed">
+                 <div className="text-xs text-app-accent font-bold mb-2 flex items-center">
+                    <div className="w-2 h-2 bg-app-accent rounded-full mr-2"></div>
+                    로고 위치/크기
                  </div>
                  <PropertyRow
-                    label="로고 크기"
+                    label="크기"
                     value={visualizerSettings.logoScale || 1.0}
                     min={0.1}
                     max={3.0}
@@ -170,7 +172,7 @@ const EffectControls: React.FC<EffectControlsProps> = ({
                     onChange={(v) => handleVisualChange('logoScale', v)}
                  />
                  <PropertyRow
-                    label="가로 위치 %"
+                    label="가로 %"
                     value={visualizerSettings.logoX ?? 95}
                     min={0}
                     max={100}
@@ -179,7 +181,7 @@ const EffectControls: React.FC<EffectControlsProps> = ({
                     suffix="%"
                  />
                  <PropertyRow
-                    label="세로 위치 %"
+                    label="세로 %"
                     value={visualizerSettings.logoY ?? 5}
                     min={0}
                     max={100}
@@ -191,20 +193,20 @@ const EffectControls: React.FC<EffectControlsProps> = ({
         )}
 
         <ImageUploadRow 
-            label="스티커 / GIF"
+            label="스티커/GIF"
             currentImage={visualizerSettings.stickerImage}
             onUpload={(file) => handleImageUpload('stickerImage', file)}
             onRemove={() => handleVisualChange('stickerImage', null)}
         />
-        {/* Sticker Transformations (Only if sticker exists) */}
+        {/* Sticker Transformations */}
         {visualizerSettings.stickerImage && (
-            <div className="bg-black/20 border-t border-dashed border-white/10 pb-2">
-                 <div className="px-4 py-2 text-[9px] text-green-400 font-semibold flex items-center mb-1">
-                    <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-                    스티커 설정 (STICKER TRANSFORM)
+            <div className="mx-4 mb-4 p-3 rounded-xl bg-app-bg shadow-neu-pressed">
+                 <div className="text-xs text-app-accent font-bold mb-2 flex items-center">
+                    <div className="w-2 h-2 bg-app-accent rounded-full mr-2"></div>
+                    스티커 위치/크기
                  </div>
                  <PropertyRow
-                    label="스티커 크기"
+                    label="크기"
                     value={visualizerSettings.stickerScale || 1.0}
                     min={0.1}
                     max={3.0}
@@ -212,7 +214,7 @@ const EffectControls: React.FC<EffectControlsProps> = ({
                     onChange={(v) => handleVisualChange('stickerScale', v)}
                  />
                  <PropertyRow
-                    label="가로 위치 %"
+                    label="가로 %"
                     value={visualizerSettings.stickerX ?? 50}
                     min={0}
                     max={100}
@@ -221,7 +223,7 @@ const EffectControls: React.FC<EffectControlsProps> = ({
                     suffix="%"
                  />
                  <PropertyRow
-                    label="세로 위치 %"
+                    label="세로 %"
                     value={visualizerSettings.stickerY ?? 50}
                     min={0}
                     max={100}
@@ -233,11 +235,11 @@ const EffectControls: React.FC<EffectControlsProps> = ({
         )}
       </div>
 
-       <div className="mt-auto p-4 border-t border-white/5 bg-black/10">
+       <div className="mt-8 px-6">
         <button 
           onClick={() => {
               onVisualizerChange({ 
-                  color: '#3ea6ff', 
+                  color: '#8b5cf6', 
                   lineThickness: 2, 
                   amplitude: 1.0, 
                   sensitivity: 0.85,
@@ -277,9 +279,9 @@ const EffectControls: React.FC<EffectControlsProps> = ({
                   }
               });
           }}
-          className="w-full py-2.5 text-xs bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 rounded-lg transition-all font-medium tracking-wide active:scale-95 shadow-lg"
+          className="w-full py-3 text-sm bg-app-bg text-gray-500 rounded-xl font-bold tracking-wide shadow-neu-btn active:shadow-neu-pressed hover:text-red-500 transition-all"
         >
-          모든 설정 초기화
+          초기화 (RESET)
         </button>
       </div>
     </div>

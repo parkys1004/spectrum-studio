@@ -25,31 +25,29 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
         });
     };
 
+    // Updated SpectrumButton to match EffectButton styling
     const SpectrumButton = ({ mode, label, icon }: { mode: VisualizerMode, label: string, icon: React.ReactNode }) => {
         const isActive = currentMode === mode;
         return (
             <button
                 onClick={() => onModeChange(mode)}
-                className={`relative w-full aspect-square rounded-lg border flex flex-col items-center justify-center space-y-1.5 transition-all duration-300 group overflow-hidden ${
+                className={`relative w-full aspect-[4/3] rounded-2xl flex flex-col items-center justify-center p-2 transition-all duration-200 group ${
                     isActive
-                        ? 'bg-app-accent/10 border-app-accent/40 shadow-[0_0_10px_rgba(62,166,255,0.1)]'
-                        : 'bg-white/[0.03] border-white/5 hover:border-white/10 hover:bg-white/[0.06]'
+                        ? 'bg-app-bg shadow-neu-pressed text-app-accent'
+                        : 'bg-app-bg shadow-neu-btn text-gray-500 hover:text-gray-700'
                 }`}
                 title={label}
             >
-                {/* Active Indicator Glow */}
-                {isActive && <div className="absolute inset-0 bg-app-accent/5 blur-xl"></div>}
+                {/* Indicator (Same as EffectButton) */}
+                <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full transition-all duration-300 ${isActive ? 'bg-app-accent' : 'bg-transparent'}`}></div>
 
-                <div className={`relative z-10 transition-colors duration-300 transform scale-75 ${isActive ? 'text-app-accent' : 'text-gray-500 group-hover:text-gray-300'}`}>
+                <div className={`mb-2 transform transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
                     {icon}
                 </div>
-                {/* Optional: Hide label on very small buttons or use tiny font */}
-                <span className={`relative z-10 text-[7px] font-bold uppercase tracking-wider transition-colors duration-300 truncate w-full px-1 text-center ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-gray-400'}`}>
+                
+                <span className="text-[11px] font-bold tracking-tight text-center leading-tight">
                     {label}
                 </span>
-                
-                {/* Bottom line for active */}
-                {isActive && <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-app-accent shadow-[0_0_8px_rgba(62,166,255,1)]"></div>}
             </button>
         );
     };
@@ -57,39 +55,37 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
     const EffectButton = ({ active, label, onClick, icon }: { active: boolean, label: string, onClick: () => void, icon?: React.ReactNode }) => (
         <button
             onClick={onClick}
-            className={`relative w-full aspect-[4/3] rounded-lg border flex flex-col items-center justify-center p-2 transition-all duration-300 group ${
+            className={`relative w-full aspect-[4/3] rounded-2xl flex flex-col items-center justify-center p-2 transition-all duration-200 group ${
                 active
-                    ? 'bg-purple-500/10 border-purple-500/40 shadow-[0_0_8px_rgba(168,85,247,0.15)]'
-                    : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
+                    ? 'bg-app-bg shadow-neu-pressed text-app-accent'
+                    : 'bg-app-bg shadow-neu-btn text-gray-500 hover:text-gray-700'
             }`}
             title={label}
         >
-             {/* Active Dot */}
-             <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full transition-all duration-300 ${active ? 'bg-purple-400 shadow-[0_0_5px_rgba(192,132,252,0.8)]' : 'bg-gray-700'}`}></div>
+             {/* Indicator */}
+             <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full transition-all duration-300 ${active ? 'bg-app-accent' : 'bg-transparent'}`}></div>
 
-             <div className={`mb-1 transition-colors ${active ? 'text-purple-300' : 'text-gray-500 group-hover:text-gray-400'}`}>
+             <div className="mb-2">
                  {icon || <div className="w-5 h-5 bg-current opacity-20 rounded-sm"></div>}
              </div>
              
-             <span className={`text-[8px] font-medium tracking-wide text-center leading-tight ${active ? 'text-purple-100' : 'text-gray-500 group-hover:text-gray-300'}`}>
+             <span className="text-[11px] font-bold tracking-tight text-center leading-tight">
                 {label}
             </span>
         </button>
     );
 
     return (
-        <div className="flex flex-col h-full bg-[#121212] overflow-y-auto custom-scrollbar">
+        <div className="flex flex-col h-full bg-app-bg overflow-y-auto p-1">
             
             {/* 1. Spectrum Types */}
-            <div className="p-3">
-                <div className="flex items-center mb-3 opacity-70">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-                    <span className="mx-3 text-[9px] font-bold text-gray-400 uppercase tracking-widest">시각화 (MODES)</span>
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+            <div className="p-4">
+                <div className="flex items-center mb-4">
+                    <span className="text-xs font-bold text-app-textMuted uppercase tracking-widest pl-1">시각화 (MODES)</span>
                 </div>
                 
-                {/* 5 Columns Grid for Compact Layout */}
-                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                {/* Fixed grid to 3 columns */}
+                <div className="grid grid-cols-3 gap-4">
                     <SpectrumButton 
                         mode={VisualizerMode.BARS} 
                         label="BARS" 
@@ -144,14 +140,12 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
             </div>
 
             {/* 2. Video Effects */}
-            <div className="p-3 pt-0">
-                <div className="flex items-center mb-3 mt-1 opacity-70">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-                    <span className="mx-3 text-[9px] font-bold text-gray-400 uppercase tracking-widest">효과 (FX)</span>
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+            <div className="p-4 pt-0">
+                <div className="flex items-center mb-4 mt-2">
+                    <span className="text-xs font-bold text-app-textMuted uppercase tracking-widest pl-1">효과 (FX)</span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-4">
                     {/* Transform Group */}
                      <EffectButton 
                         active={settings.effects.mirror} 
@@ -244,8 +238,8 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                 </div>
             </div>
             
-            <div className="mt-auto p-3 border-t border-white/5 bg-black/20 text-center">
-                 <p className="text-[9px] text-gray-600 font-mono tracking-wide">POST-PROCESSING READY</p>
+            <div className="mt-auto p-4 border-t border-white/50 bg-app-bg text-center">
+                 <p className="text-[11px] text-gray-400 font-mono tracking-wide">POST-PROCESSING READY</p>
             </div>
         </div>
     );

@@ -25,7 +25,7 @@ const App: React.FC = () => {
   // 2. Visualizer Settings State (Central Source of Truth)
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>(VisualizerMode.BARS);
   const [visualizerSettings, setVisualizerSettings] = useState<VisualizerSettings>({
-    color: '#3ea6ff',
+    color: '#8b5cf6', // Updated default to Violet to match theme
     lineThickness: 2,
     amplitude: 1.0,
     sensitivity: 0.85,
@@ -66,6 +66,9 @@ const App: React.FC = () => {
   });
 
   const visualizerCanvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // UI State
+  const [trackToDelete, setTrackToDelete] = useState<string | null>(null);
 
   // 3. Audio Player Logic
   const audioPlayer = useAudioPlayer(
@@ -88,8 +91,9 @@ const App: React.FC = () => {
   const isExporting = exporter.isExporting;
 
   return (
-    <div className="min-h-screen bg-transparent text-app-text font-sans selection:bg-app-accent selection:text-black flex flex-col h-screen overflow-hidden">
+    <div className="min-h-screen bg-app-bg text-app-text font-sans selection:bg-app-accent selection:text-white flex flex-col h-screen overflow-hidden">
       
+      {/* Export Modal */}
       <Modal 
         isOpen={exporter.showExportModal} 
         onClose={() => exporter.setShowExportModal(false)}
@@ -98,58 +102,85 @@ const App: React.FC = () => {
         confirmText="고속 렌더링 시작"
       >
         {/* Modal Content */}
-        <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-                <div className="p-2 bg-purple-900/30 rounded-lg border border-purple-500/30">
-                    <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <div className="space-y-6">
+            <div className="flex items-start space-x-4">
+                <div className="p-3 bg-app-bg rounded-xl shadow-neu-flat text-app-accent">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 </div>
                 <div>
-                    <h4 className="font-bold text-gray-200">오프라인 고속 렌더링</h4>
-                    <p className="text-gray-400 mt-1 leading-relaxed">
-                        실시간 재생 없이 파일을 직접 처리하여 <span className="text-white font-bold">최대 10배 빠른 속도</span>로 영상을 생성합니다.
+                    <h4 className="font-bold text-xl text-app-text">오프라인 고속 렌더링</h4>
+                    <p className="text-app-textMuted mt-1 leading-relaxed text-base">
+                        실시간 재생 없이 파일을 직접 처리하여 <span className="text-app-accent font-bold">최대 10배 빠른 속도</span>로 영상을 생성합니다.
                     </p>
                 </div>
             </div>
             
-            <div className="bg-[#1f1f1f] p-3 rounded-lg border border-app-border text-xs text-gray-400 space-y-2">
-                 <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-1">
-                    <span>대상 트랙:</span>
-                    <span className="text-gray-200">{exporter.exportStats.total} 개</span>
+            <div className="bg-app-bg p-4 rounded-xl shadow-neu-pressed text-sm text-app-text space-y-3">
+                 <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-1">
+                    <span className="font-semibold text-app-textMuted">대상 트랙</span>
+                    <span className="text-app-text font-bold text-base">{exporter.exportStats.total} 개</span>
                 </div>
                 
-                <div className="space-y-1">
-                    <span className="block mb-1">해상도 설정:</span>
-                    <label className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-[#333] rounded transition-colors">
+                <div className="space-y-2">
+                    <span className="block mb-2 font-semibold text-app-textMuted">해상도 설정</span>
+                    <label className="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:shadow-neu-flat transition-all">
                         <input 
                             type="radio" 
                             name="resolution" 
                             value="1080p" 
                             checked={exporter.exportResolution === '1080p'}
                             onChange={() => exporter.setExportResolution('1080p')}
-                            className="text-app-accent focus:ring-app-accent"
+                            className="text-app-accent focus:ring-app-accent w-5 h-5"
                         />
-                        <span className="text-gray-200">FHD 1080p (고화질)</span>
-                        <span className="text-gray-500 text-[10px] ml-auto">1920x1080</span>
+                        <span className="text-app-text font-medium">FHD 1080p (고화질)</span>
+                        <span className="text-app-textMuted text-xs ml-auto">1920x1080</span>
                     </label>
-                    <label className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-[#333] rounded transition-colors">
+                    <label className="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:shadow-neu-flat transition-all">
                         <input 
                             type="radio" 
                             name="resolution" 
                             value="720p" 
                             checked={exporter.exportResolution === '720p'}
                             onChange={() => exporter.setExportResolution('720p')}
-                            className="text-app-accent focus:ring-app-accent"
+                            className="text-app-accent focus:ring-app-accent w-5 h-5"
                         />
-                        <span className="text-gray-200">HD 720p (빠름)</span>
-                        <span className="text-gray-500 text-[10px] ml-auto">1280x720</span>
+                        <span className="text-app-text font-medium">HD 720p (빠름)</span>
+                        <span className="text-app-textMuted text-xs ml-auto">1280x720</span>
                     </label>
                 </div>
             </div>
         </div>
       </Modal>
 
-      {/* Main Grid Layout - 4 Column Structure (Grid 12) */}
-      <div className="flex-1 p-3 grid grid-cols-1 lg:grid-cols-12 gap-3 overflow-hidden">
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!trackToDelete}
+        onClose={() => setTrackToDelete(null)}
+        onConfirm={() => {
+            if (trackToDelete) {
+                handleDeleteTrack(trackToDelete);
+                setTrackToDelete(null);
+            }
+        }}
+        title="파일 삭제 확인"
+        confirmText="삭제"
+      >
+        <div className="text-center py-2">
+            <div className="w-16 h-16 bg-app-bg text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-neu-btn">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </div>
+            <p className="text-lg font-bold text-app-text mb-2 px-4 truncate">
+                '{tracks.find(t => t.id === trackToDelete)?.name}'
+            </p>
+            <p className="text-app-textMuted leading-relaxed">
+                정말 이 파일을 삭제하시겠습니까?<br/>
+                <span className="text-xs text-red-400 mt-2 block font-bold tracking-wide">이 작업은 되돌릴 수 없습니다.</span>
+            </p>
+        </div>
+      </Modal>
+
+      {/* Main Grid Layout - Spaced for Neumorphism */}
+      <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
         
         {/* Column 1: Playlist (2/12) */}
         <BentoBox 
@@ -168,7 +199,7 @@ const App: React.FC = () => {
                   onNavigate={setCurrentFolderId}
                   onMoveTrack={handleTrackMove}
                   onReorderTrack={handleReorderTrack}
-                  onDeleteTrack={handleDeleteTrack}
+                  onDeleteTrack={setTrackToDelete}
                 />
             </div>
         </BentoBox>
@@ -189,23 +220,23 @@ const App: React.FC = () => {
         </BentoBox>
 
         {/* Column 3: Visualizer + Timeline (5/12) */}
-        <div className="col-span-1 lg:col-span-5 h-full flex flex-col gap-3 order-3 overflow-hidden">
+        <div className="col-span-1 lg:col-span-5 h-full flex flex-col gap-6 order-3 overflow-hidden">
             
             {/* Top: Visualizer */}
             <BentoBox 
-                className="flex-1 min-h-0 bg-black border-app-accent/20 shadow-neon relative group animate-slideUp stagger-3 opacity-0"
+                className="flex-1 min-h-0 relative group animate-slideUp stagger-3 opacity-0"
                 title={isExporting ? `렌더링 상태` : `프로그램: ${audioPlayer.currentTrack ? audioPlayer.currentTrack.name : '대기 중'}`}
                 headerRight={
                     <button 
                         onClick={isExporting ? exporter.cancelExport : exporter.triggerExportModal}
                         disabled={!audioPlayer.currentTrack && !isExporting}
-                        className={`flex items-center space-x-2 px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all tracking-tight border shadow-md ${
+                        className={`flex items-center space-x-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase transition-all tracking-tight ${
                             isExporting 
-                            ? 'bg-red-600 border-red-500 text-white animate-pulse' 
-                            : 'bg-app-accent text-black border-blue-400 hover:bg-white hover:border-white shadow-[0_0_10px_rgba(62,166,255,0.4)]'
+                            ? 'bg-red-50 text-red-500 shadow-neu-pressed animate-pulse' 
+                            : 'bg-app-bg text-app-text shadow-neu-btn hover:text-app-accent active:shadow-neu-pressed'
                         }`}
                     >
-                        <div className={`w-1.5 h-1.5 rounded-full ${isExporting ? 'bg-white' : 'bg-black'}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${isExporting ? 'bg-red-500' : 'bg-app-accent'}`}></div>
                         <span>{isExporting ? '작업 취소' : '내보내기'}</span>
                     </button>
                 }
@@ -220,24 +251,24 @@ const App: React.FC = () => {
 
                 {/* Export Overlay */}
                 {isExporting && (
-                      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/90 pointer-events-none backdrop-blur-md">
+                      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 pointer-events-none backdrop-blur-sm">
                           <div className="w-[80%] max-w-[300px] flex flex-col items-center">
-                              <div className="relative mb-6">
-                                <div className="w-16 h-16 border-4 border-app-accent/30 rounded-full"></div>
-                                <div className="w-16 h-16 border-4 border-app-accent border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+                              <div className="relative mb-8">
+                                <div className="w-24 h-24 rounded-full shadow-neu-flat"></div>
+                                <div className="w-24 h-24 rounded-full border-4 border-app-accent border-t-transparent animate-spin absolute top-0 left-0"></div>
                               </div>
-                              <h3 className="text-xl font-bold text-white mb-2 tracking-tight">렌더링 진행 중</h3>
-                              <p className="text-sm text-gray-400 mb-6 text-center">{exporter.exportStats.phase}</p>
+                              <h3 className="text-2xl font-bold text-app-text mb-2 tracking-tight">렌더링 진행 중</h3>
+                              <p className="text-base text-app-textMuted mb-8 text-center">{exporter.exportStats.phase}</p>
                               
                               {exporter.exportStats.total > 0 && (
-                                <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden border border-gray-700">
+                                <div className="w-full h-4 bg-app-bg rounded-full shadow-neu-pressed overflow-hidden">
                                     <div 
-                                        className="bg-app-accent h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(62,166,255,0.5)]" 
+                                        className="bg-app-accent h-full rounded-full transition-all duration-300" 
                                         style={{ width: `${(exporter.exportStats.current / exporter.exportStats.total) * 100}%` }}
                                     ></div>
                                 </div>
                               )}
-                              <p className="mt-3 text-[10px] text-gray-500 font-mono tracking-wider">
+                              <p className="mt-4 text-xs text-app-textMuted font-mono tracking-wider">
                                  PROCESSING {exporter.exportStats.current} / {exporter.exportStats.total}
                               </p>
                           </div>
@@ -272,7 +303,7 @@ const App: React.FC = () => {
             className="col-span-1 lg:col-span-3 h-full order-4 animate-slideUp stagger-4 opacity-0" 
             title="속성 (Properties)"
         >
-             <div className={`h-full overflow-y-auto custom-scrollbar ${isExporting ? 'opacity-50 pointer-events-none' : ''}`}>
+             <div className={`h-full overflow-y-auto ${isExporting ? 'opacity-50 pointer-events-none' : ''}`}>
                 <EffectControls 
                   visualizerSettings={visualizerSettings}
                   onVisualizerChange={setVisualizerSettings}

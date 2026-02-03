@@ -16,7 +16,7 @@ const BentoBox: React.FC<BentoBoxProps> = ({
     headerRight,
     noPadding = false
 }) => (
-    <div className={`bg-app-panel rounded-xl border border-app-border/50 shadow-lg flex flex-col overflow-hidden transition-all duration-300 hover:border-app-border ${className}`}>
+    <div className={`bg-app-panel rounded-3xl shadow-neu-flat text-app-text flex flex-col overflow-hidden transition-all duration-300 ${className}`}>
         {title && <PanelHeader title={title} rightElement={headerRight} />}
         <div className={`flex-1 overflow-hidden relative flex flex-col ${noPadding ? '' : 'p-0'}`}>
             {children}

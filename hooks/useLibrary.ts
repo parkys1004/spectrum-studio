@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Folder, Track } from '../types';
 import { storageService } from '../services/storageService';
 import { audioService } from '../services/audioService';
@@ -7,6 +7,9 @@ export const useLibrary = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  
+  // Ref to track initialization status to prevent overwriting localStorage on mount
+  const isInitialized = useRef(false);
 
   // Load Library on Mount
   useEffect(() => {
@@ -15,11 +18,14 @@ export const useLibrary = () => {
       setFolders(library.folders);
       setTracks(library.tracks);
     }
+    isInitialized.current = true;
   }, []);
 
   // Save Library on Changes
   useEffect(() => {
-    if (folders.length > 0 || tracks.length > 0) {
+    // Only save if initialized. This allows saving empty arrays if the user deleted everything.
+    // Previously, checking length > 0 prevented saving the "empty" state.
+    if (isInitialized.current) {
         storageService.saveLibrary(folders, tracks);
     }
   }, [folders, tracks]);
@@ -94,7 +100,7 @@ export const useLibrary = () => {
   }, []);
 
   const handleDeleteTrack = useCallback(async (trackId: string) => {
-      if (!window.confirm("정말 이 음악 파일을 삭제하시겠습니까?")) return;
+      // Confimation is handled by the UI (Modal) now
       
       try {
           // 1. Remove from Storage

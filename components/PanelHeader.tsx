@@ -11,15 +11,15 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
     active = true, 
     rightElement 
 }) => (
-  <div className="h-10 min-h-[40px] flex items-center px-4 select-none border-b border-white/5 bg-gradient-to-r from-white/[0.03] to-transparent">
-    <div className="flex items-center space-x-2.5">
-      {/* LED Indicator */}
-      <div className={`relative w-1.5 h-1.5 rounded-full transition-all duration-500 ${active ? 'bg-app-accent shadow-[0_0_8px_rgba(62,166,255,0.8)]' : 'bg-gray-700'}`}>
-         {active && <div className="absolute inset-0 rounded-full bg-app-accent animate-ping opacity-20"></div>}
+  <div className="h-12 min-h-[48px] flex items-center px-6 select-none bg-app-bg rounded-t-3xl">
+    <div className="flex items-center space-x-3">
+      {/* Indicator */}
+      <div className={`relative w-2 h-2 rounded-full transition-all duration-500 ${active ? 'bg-app-accent shadow-[0_0_8px_rgba(139,92,246,0.6)]' : 'bg-gray-400'}`}>
+         {active && <div className="absolute inset-0 rounded-full bg-app-accent animate-ping opacity-30"></div>}
       </div>
       
       {/* Title */}
-      <span className="text-[11px] font-bold text-gray-300 tracking-[0.1em] uppercase opacity-80 text-shadow-sm">
+      <span className="text-sm font-bold text-app-text tracking-widest uppercase opacity-70">
         {title}
       </span>
     </div>

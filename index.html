@@ -12,42 +12,45 @@
           extend: {
             colors: {
               app: {
-                bg: '#050505',          /* Ultra Dark */
-                panel: '#121212',       /* Deep Matte Black */
-                panelHeader: '#1a1a1a', /* Slightly Lighter Header */
-                border: '#2a2a2a',      /* Subtle Borders */
-                accent: '#3ea6ff',      /* Vivid Blue */
-                accentGlow: 'rgba(62,166,255,0.4)',
-                text: '#f0f0f0',        
-                textMuted: '#737373',   
-                timeline: '#0a0a0a',    
-                ruler: '#141414'        
+                bg: '#e0e5ec',          /* Soft Gray Base */
+                panel: '#e0e5ec',       /* Same as bg for neumorphism */
+                accent: '#8b5cf6',      /* Violet */
+                text: '#4a5568',        /* Dark Gray Text */
+                textMuted: '#a0aec0',   /* Muted Gray */
+                border: '#cbd5e0',      
               }
             },
             fontFamily: {
-              sans: ['Pretendard', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'sans-serif'],
-              mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace']
+              sans: ['Pretendard', 'Inter', 'sans-serif'],
+              mono: ['ui-monospace', 'SFMono-Regular', 'monospace']
             },
             boxShadow: {
-                'glow': '0 0 15px rgba(62,166,255,0.3), 0 0 30px rgba(62,166,255,0.1)',
-                'neon': '0 0 5px theme("colors.app.accent"), 0 0 20px theme("colors.app.accentGlow")',
-                'inner-light': 'inset 0 1px 0 rgba(255,255,255,0.05)',
-                'glass': '0 4px 30px rgba(0, 0, 0, 0.1)',
+                'neu-flat': '9px 9px 16px rgb(163,177,198,0.6), -9px -9px 16px rgba(255,255,255, 0.5)',
+                'neu-pressed': 'inset 6px 6px 10px rgb(163,177,198,0.6), inset -6px -6px 10px rgba(255,255,255, 0.5)',
+                'neu-btn': '6px 6px 10px rgb(163,177,198,0.6), -6px -6px 10px rgba(255,255,255, 0.5)',
+                'neu-icon': '5px 5px 10px rgb(163,177,198,0.6), -5px -5px 10px rgba(255,255,255, 0.5)',
+                'neu-thin': '3px 3px 6px rgb(163,177,198,0.6), -3px -3px 6px rgba(255,255,255, 0.5)',
             },
             fontSize: {
-              'xxs': '0.65rem',
-              'xs': '0.75rem',
-              'sm': '0.875rem',
-              'base': '1rem',
+              'xxs': '0.7rem',     /* Increased from 0.65rem */
+              'xs': '0.8rem',      /* Increased from 0.75rem (~12.8px) */
+              'sm': '0.95rem',     /* Increased from 0.875rem (~15.2px) */
+              'base': '1.05rem',   /* Increased from 1rem (~16.8px) */
+              'lg': '1.2rem',
+              'xl': '1.4rem',
             },
             animation: {
                 'slideUp': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-                'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                'fadeIn': 'fadeIn 0.3s ease-out forwards',
             },
             keyframes: {
                 slideUp: {
                     '0%': { opacity: '0', transform: 'translateY(30px)' },
                     '100%': { opacity: '1', transform: 'translateY(0)' },
+                },
+                fadeIn: {
+                    '0%': { opacity: '0' },
+                    '100%': { opacity: '1' },
                 }
             }
           }
@@ -56,47 +59,29 @@
     </script>
     <style>
       body {
-        background-color: #050505;
-        /* Cyberpunk Grid Background */
-        background-image: 
-            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-            radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 80%);
-        background-size: 40px 40px, 40px 40px, 100% 100%;
-        background-position: center top;
-        color: #e5e5e5;
+        background-color: #e0e5ec;
+        color: #4a5568;
         font-family: 'Pretendard', sans-serif;
         overflow-x: hidden;
         -webkit-font-smoothing: antialiased;
       }
 
-      /* --- ROBUST SCROLLBARS --- */
+      /* --- HIDDEN SCROLLBARS (Scrollable but invisible) --- */
       ::-webkit-scrollbar {
-        width: 14px;
-        height: 14px;
+        display: none;
       }
-      ::-webkit-scrollbar-track {
-        background: #0a0a0a; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #333; 
-        border: 3px solid #0a0a0a; 
-        border-radius: 7px;
-        min-height: 40px; 
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #555; 
-      }
-      ::-webkit-scrollbar-corner {
-        background: #0a0a0a;
+      
+      * {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
       }
 
-      /* --- HIGH-PERFORMANCE SLIDERS --- */
+      /* --- NEUMORPHIC SLIDERS --- */
       input[type="range"] {
         -webkit-appearance: none;
         appearance: none;
         background: transparent;
-        height: 28px;
+        height: 24px;
         width: 100%;
         cursor: pointer;
         display: block;
@@ -106,64 +91,49 @@
         outline: none;
       }
       
-      /* Track Styling */
+      /* Track Styling (Inset Shadow) */
       input[type="range"]::-webkit-slider-runnable-track {
         width: 100%;
-        height: 4px;
-        background: #333;
-        border-radius: 2px;
+        height: 8px;
+        background: #e0e5ec;
+        border-radius: 10px;
+        box-shadow: inset 2px 2px 5px #a3b1c6, inset -2px -2px 5px #ffffff;
         cursor: pointer;
-        transition: background 0.2s;
-      }
-      input[type="range"]:hover::-webkit-slider-runnable-track {
-        background: #444;
       }
       
-      /* Thumb Styling */
+      /* Thumb Styling (Extruded) */
       input[type="range"]::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
-        height: 16px; 
-        width: 16px;
+        height: 18px; 
+        width: 18px;
         border-radius: 50%;
-        background: #e0e0e0;
+        background: #e0e5ec;
         cursor: grab;
-        margin-top: -6px; 
-        box-shadow: 0 0 10px rgba(0,0,0,0.5);
-        border: 2px solid #121212;
-        transition: transform 0.1s ease-out, background 0.2s, box-shadow 0.2s;
+        margin-top: -5px; 
+        box-shadow: 3px 3px 6px #a3b1c6, -3px -3px 6px #ffffff;
+        border: 1px solid rgba(255,255,255,0.2);
+        transition: transform 0.1s ease-out;
       }
       
       input[type="range"]::-webkit-slider-thumb:hover {
-        background: #fff;
-        transform: scale(1.2);
-        box-shadow: 0 0 15px rgba(255,255,255,0.3);
+        transform: scale(1.1);
+        background: #f7fafc;
       }
       
       input[type="range"]::-webkit-slider-thumb:active {
         cursor: grabbing;
-        background: #3ea6ff;
-        border-color: #3ea6ff;
-        transform: scale(1.3);
-        box-shadow: 0 0 20px rgba(62,166,255,0.5);
+        background: #e0e5ec;
+        box-shadow: inset 2px 2px 5px #a3b1c6, inset -2px -2px 5px #ffffff;
+        transform: scale(0.95);
       }
 
-      /* Custom Utilities */
+      /* Utilities */
       .glass-panel {
-        background: rgba(18, 18, 18, 0.7);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-      .text-shadow-sm {
-        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-      }
-      .text-shadow-glow {
-        text-shadow: 0 0 10px rgba(62,166,255,0.5);
-      }
-      
-      .grid {
-        gap: 0.75rem; 
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
       }
       
       input[type="file"] {
