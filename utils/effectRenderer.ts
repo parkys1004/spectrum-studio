@@ -24,6 +24,7 @@ export class EffectRenderer {
     private fireworkParticles: Particle[] = [];
     private starParticles: Particle[] = [];
     private fogParticles: Particle[] = [];
+    private fireflyParticles: Particle[] = [];
 
     constructor() {
         this.initStars();
@@ -198,6 +199,46 @@ export class EffectRenderer {
             if (p.x > this.width + 200) p.x = -200;
             if (p.x < -200) p.x = this.width + 200;
         });
+
+        // 8. Fireflies
+        const maxFireflies = 30 * intensity;
+        if (this.fireflyParticles.length < maxFireflies) {
+            this.fireflyParticles.push({
+                x: Math.random() * this.width,
+                y: Math.random() * this.height,
+                vx: (Math.random() - 0.5) * 0.5 * speed,
+                vy: (Math.random() - 0.5) * 0.5 * speed,
+                size: Math.random() * 4 + 2,
+                alpha: 0, 
+                life: Math.random() * Math.PI * 2, // Random phase
+                maxLife: 0 // Unused
+            });
+        }
+        if (this.fireflyParticles.length > maxFireflies) {
+            this.fireflyParticles.splice(0, this.fireflyParticles.length - maxFireflies);
+        }
+
+        this.fireflyParticles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            // Gentle wandering
+            p.vx += (Math.random() - 0.5) * 0.05;
+            p.vy += (Math.random() - 0.5) * 0.05;
+            // Limit speed
+            const maxSpeed = 1.0 * speed;
+            p.vx = Math.max(-maxSpeed, Math.min(maxSpeed, p.vx));
+            p.vy = Math.max(-maxSpeed, Math.min(maxSpeed, p.vy));
+
+            // Wrap
+            if (p.x < -20) p.x = this.width + 20;
+            if (p.x > this.width + 20) p.x = -20;
+            if (p.y < -20) p.y = this.height + 20;
+            if (p.y > this.height + 20) p.y = -20;
+
+            // Pulse
+            p.life += 0.05 * speed; // Use life as time/phase
+            p.alpha = (Math.sin(p.life) + 1) / 2 * 0.8 + 0.2; // 0.2 to 1.0
+        });
     }
 
     private initStars() {
@@ -254,6 +295,21 @@ export class EffectRenderer {
                 ctx.fill();
             });
             ctx.globalAlpha = 1.0;
+        }
+
+        // 8. Fireflies
+        if (effects.fireflies) {
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ccff00';
+            ctx.fillStyle = '#ccff00';
+            this.fireflyParticles.forEach(p => {
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1.0;
+            ctx.shadowBlur = 0;
         }
 
         // 4. Floating Particles (Bokeh)

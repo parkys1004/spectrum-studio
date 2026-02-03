@@ -86,6 +86,11 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                 
                 {/* Fixed grid to 3 columns */}
                 <div className="grid grid-cols-3 gap-4">
+                     <SpectrumButton 
+                        mode={VisualizerMode.AURORA} 
+                        label="AURORA" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-4 6-4 6 4 8 4 8-4 8-4 6 4 6 4" strokeLinecap="round"/><path d="M2 15s3-4 6-4 6 4 8 4 8-4 8-4 6 4 6 4" strokeLinecap="round" opacity="0.5"/></svg>}
+                    />
                     <SpectrumButton 
                         mode={VisualizerMode.BARS} 
                         label="BARS" 
@@ -190,6 +195,12 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                         label="부유 먼지" 
                         onClick={() => toggleEffect('particles')} 
                         icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="4" cy="4" r="1"/><circle cx="12" cy="10" r="1"/><circle cx="20" cy="5" r="1"/><circle cx="8" cy="18" r="1"/><circle cx="18" cy="16" r="1"/></svg>}
+                    />
+                     <EffectButton 
+                        active={settings.effects.fireflies} 
+                        label="반딧불" 
+                        onClick={() => toggleEffect('fireflies')} 
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 8v-4M12 20v-4M4 12h4M20 12h-4" opacity="0.6"/></svg>}
                     />
                     <EffectButton 
                         active={settings.effects.fireworks} 

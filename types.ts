@@ -56,6 +56,7 @@ export interface VisualizerSettings {
     fireworks: boolean;   // Explosions on beat
     starfield: boolean;   // Twinkling stars
     fog: boolean;         // Drifting smoke/fog
+    fireflies: boolean;   // New: Glowing drifting bugs
     
     // Overlays (New)
     filmGrain: boolean;   // Retro noise
@@ -82,5 +83,6 @@ export enum VisualizerMode {
   PIXEL = 'PIXEL',            // Retro blocky bars
   EQUALIZER = 'EQUALIZER',    // Segmented LED style
   STARBURST = 'STARBURST',    // Radial lines from center
-  BUTTERFLY = 'BUTTERFLY'     // Mirrored wing shape
+  BUTTERFLY = 'BUTTERFLY',    // Mirrored wing shape
+  AURORA = 'AURORA'           // New: Rainbow Gradient Wave
 }

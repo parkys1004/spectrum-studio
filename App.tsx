@@ -53,6 +53,7 @@ const App: React.FC = () => {
         fireworks: false,
         starfield: false,
         fog: false,
+        fireflies: false,
         filmGrain: false,
         vignette: false,
         scanlines: false

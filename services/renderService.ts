@@ -3,7 +3,7 @@ import * as Muxer from 'mp4-muxer';
 import { 
     drawBars, drawLine, drawCircle, 
     drawFilledWave, drawDualBars, drawRipple, 
-    drawPixel, drawEqualizer, drawStarburst, drawButterfly 
+    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora
 } from '../utils/drawUtils';
 import { EffectRenderer } from '../utils/effectRenderer';
 import { audioService } from './audioService';
@@ -223,6 +223,7 @@ class RenderService {
             case VisualizerMode.EQUALIZER: drawEqualizer(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
             case VisualizerMode.STARBURST: drawStarburst(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
             case VisualizerMode.BUTTERFLY: drawButterfly(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
+            case VisualizerMode.AURORA: drawAurora(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
             default: drawBars(context, dataArray, dataArray.length, width, height, visualizerSettings);
          }
     };

@@ -267,6 +267,7 @@ const EffectControls: React.FC<EffectControlsProps> = ({
                     fireworks: false,
                     starfield: false,
                     fog: false,
+                    fireflies: false,
                     filmGrain: false,
                     vignette: false,
                     scanlines: false

@@ -328,3 +328,75 @@ export const drawButterfly = (ctx: CanvasRenderingContext2D | OffscreenCanvasRen
     ctx.stroke();
     ctx.shadowBlur = 0;
 };
+
+// 11. Aurora (Rainbow Spectrum Wave)
+export const drawAurora = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, data: Uint8Array, bufferLength: number, width: number, height: number, settings: VisualizerSettings) => {
+    const centerY = height / 2;
+    
+    // Create Rainbow Gradient (Red -> Violet)
+    const gradient = ctx.createLinearGradient(0, 0, width, 0);
+    gradient.addColorStop(0.0, '#ff3333'); // Red
+    gradient.addColorStop(0.16, '#ffaa33'); // Orange
+    gradient.addColorStop(0.33, '#ffff33'); // Yellow
+    gradient.addColorStop(0.50, '#33ff33'); // Green
+    gradient.addColorStop(0.66, '#33ffff'); // Cyan
+    gradient.addColorStop(0.83, '#3333ff'); // Blue
+    gradient.addColorStop(1.0, '#aa33ff'); // Violet
+
+    // Settings
+    const smoothingStep = Math.max(1, Math.floor(bufferLength / 128)); // Reduce points for smoother curve
+    
+    // Function to draw one side (up or down)
+    const drawSide = (flip: boolean, opacity: number) => {
+        ctx.fillStyle = gradient;
+        ctx.globalAlpha = opacity;
+        
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+
+        let px = 0;
+        let py = centerY;
+        
+        const sliceWidth = width / (bufferLength / smoothingStep);
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i += smoothingStep) {
+            const val = data[i];
+            // Amplitude scaling
+            const barHeight = (val / 255) * (height / 2.5) * settings.amplitude;
+            
+            const targetX = x;
+            const targetY = flip ? centerY + barHeight : centerY - barHeight;
+
+            if (i === 0) {
+                ctx.moveTo(targetX, targetY);
+            } else {
+                // Quadratic curve for smooth peaks
+                const cx = (px + targetX) / 2;
+                const cy = (py + targetY) / 2;
+                ctx.quadraticCurveTo(px, py, cx, cy);
+            }
+
+            px = targetX;
+            py = targetY;
+            x += sliceWidth;
+        }
+
+        ctx.lineTo(width, centerY);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Optional: White line on top for definition
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.stroke();
+    };
+
+    // Draw Top
+    drawSide(false, 0.9);
+    
+    // Draw Bottom (Reflection)
+    drawSide(true, 0.4);
+
+    ctx.globalAlpha = 1.0;
+};
