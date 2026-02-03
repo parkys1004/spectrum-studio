@@ -230,9 +230,22 @@ const Playlist: React.FC<PlaylistProps> = ({
               </div>
           )}
       </div>
+
+      {/* Kmong Promotion Button */}
+      <div className="px-4 pt-2 pb-1 bg-app-bg border-t border-white/40">
+          <a 
+              href="https://kmong.com/self-marketing/730531/ZQh4nXZpK5" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="group flex items-center justify-center w-full py-2.5 text-xs font-bold text-gray-600 bg-app-bg rounded-xl shadow-neu-btn active:shadow-neu-pressed hover:text-yellow-600 transition-all uppercase tracking-wide"
+          >
+              <span className="mr-2 text-yellow-500 text-sm">★</span> 
+              <span>크몽 방문하기</span>
+          </a>
+      </div>
       
       {/* Footer Status */}
-      <div className="px-5 py-3 border-t border-white/40 text-[11px] text-app-textMuted flex justify-between tracking-wider font-mono">
+      <div className="px-5 py-3 text-[11px] text-app-textMuted flex justify-between tracking-wider font-mono">
         <span>ITEMS: {currentFolders.length + currentTracks.length}</span>
         <span>READY</span>
       </div>
