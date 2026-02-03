@@ -3,7 +3,7 @@ import * as Muxer from 'mp4-muxer';
 import { 
     drawBars, drawLine, drawCircle, 
     drawFilledWave, drawDualBars, drawRipple, 
-    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora
+    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum
 } from '../utils/drawUtils';
 import { EffectRenderer } from '../utils/effectRenderer';
 import { audioService } from './audioService';
@@ -113,7 +113,8 @@ class RenderService {
     const width = resolution === '1080p' ? 1920 : 1280;
     const height = resolution === '1080p' ? 1080 : 720;
     const fps = 30;
-    const bitrate = resolution === '1080p' ? 10_000_000 : 5_000_000;
+    // Slight increase in bitrate for 1080p to compensate for faster encoding profiles
+    const bitrate = resolution === '1080p' ? 12_000_000 : 6_000_000; 
 
     const muxer = new Muxer.Muxer({
         target: new Muxer.ArrayBufferTarget(),
@@ -130,16 +131,34 @@ class RenderService {
         }
     }) as VideoEncoderWithState;
 
-    // Codec configuration with fallback
+    // OPTIMIZATION: Use Baseline profile for speed and prefer hardware acceleration.
+    // Dynamic Level Selection:
+    // Level 3.1 (1f) -> max 1280x720 @ 30fps
+    // Level 4.2 (2a) -> max 1920x1080 @ 60fps
+    const is1080p = width > 1280 || height > 720;
+    const codecLevel = is1080p ? '2a' : '1f';
+    const baselineCodec = `avc1.4200${codecLevel}`;
+    const mainCodec = `avc1.4d00${codecLevel}`; // Fallback
+
+    const encoderConfig: any = {
+        codec: baselineCodec, // Baseline Profile
+        width, 
+        height, 
+        bitrate, 
+        framerate: fps,
+        hardwareAcceleration: 'prefer-hardware', // FORCE HARDWARE
+        bitrateMode: 'constant', // CBR is often faster/predictable
+        latencyMode: 'realtime' // Hint for speed
+    };
+
     try {
-        videoEncoder.configure({
-            codec: resolution === '1080p' ? 'avc1.4d002a' : 'avc1.4d001f', // Main/High
-            width, height, bitrate, framerate: fps,
-        });
+        videoEncoder.configure(encoderConfig);
     } catch (e) {
+        console.warn("Hardware/Baseline config failed, falling back to standard config", e);
         videoEncoder.configure({
-            codec: 'avc1.42001f', // Baseline
+            codec: mainCodec, // Main Profile Fallback
             width, height, bitrate, framerate: fps,
+            hardwareAcceleration: 'no-preference'
         });
     }
 
@@ -171,7 +190,13 @@ class RenderService {
     });
 
     const canvas = new OffscreenCanvas(width, height);
-    const ctx = canvas.getContext('2d', { alpha: false })!;
+    // OPTIMIZATION: alpha: false and desynchronized: true for faster blitting
+    const ctx = canvas.getContext('2d', { 
+        alpha: false, 
+        desynchronized: true,
+        willReadFrequently: false // We are writing mostly
+    })!;
+    
     const effectRenderer = new EffectRenderer();
     effectRenderer.resize(width, height);
 
@@ -208,23 +233,28 @@ class RenderService {
     const totalFrames = Math.ceil(totalDuration * fps);
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     
-    // LOOKAHEAD: Schedule this many frames ahead to prevent race conditions
-    const LOOKAHEAD = 10; 
+    // LOOKAHEAD: Increase buffer to ensure we always have work ready for the GPU
+    const LOOKAHEAD = 30; 
+    
+    // Track start time for speed calculation
+    let startTime = 0;
 
-    const renderSpectrum = (context: OffscreenCanvasRenderingContext2D) => {
+    // Modified to accept dimensions exactly like Visualizer.tsx
+    const renderSpectrum = (context: OffscreenCanvasRenderingContext2D, w: number, h: number) => {
          switch (visualizerMode) {
-            case VisualizerMode.BARS: drawBars(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.WAVE: drawLine(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.CIRCULAR: drawCircle(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.FILLED: drawFilledWave(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.DUAL_BARS: drawDualBars(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.RIPPLE: drawRipple(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.PIXEL: drawPixel(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.EQUALIZER: drawEqualizer(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.STARBURST: drawStarburst(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.BUTTERFLY: drawButterfly(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            case VisualizerMode.AURORA: drawAurora(context, dataArray, dataArray.length, width, height, visualizerSettings); break;
-            default: drawBars(context, dataArray, dataArray.length, width, height, visualizerSettings);
+            case VisualizerMode.BARS: drawBars(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.WAVE: drawLine(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.CIRCULAR: drawCircle(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.FILLED: drawFilledWave(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.DUAL_BARS: drawDualBars(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.RIPPLE: drawRipple(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.PIXEL: drawPixel(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.EQUALIZER: drawEqualizer(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.STARBURST: drawStarburst(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.BUTTERFLY: drawButterfly(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.AURORA: drawAurora(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.SPECTRUM: drawSpectrum(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            default: drawBars(context, dataArray, dataArray.length, w, h, visualizerSettings);
          }
     };
 
@@ -232,15 +262,21 @@ class RenderService {
         const processFrame = async (i: number) => {
             if (signal.aborted || this.hasEncoderError) return;
 
-            // Backpressure: Wait if encoder is busy
-            if (videoEncoder.encodeQueueSize > 15) {
-                await new Promise(r => setTimeout(r, 10));
+            // OPTIMIZATION: Backpressure Check
+            if (videoEncoder.encodeQueueSize > 60) {
+                await new Promise(r => setTimeout(r, 1));
             }
             
-            // UI Yield: keep interface responsive
-            if (i % 30 === 0) {
-                onProgress(i, totalFrames, `렌더링 진행률 ${Math.round((i/totalFrames)*100)}%`);
-                // Allow UI to breathe
+            // OPTIMIZATION: Yield to UI less frequently
+            if (i % 120 === 0) {
+                const elapsed = (performance.now() - startTime) / 1000;
+                let speedInfo = "";
+                if (elapsed > 1.0) {
+                    const processedDuration = i / fps;
+                    const speed = (processedDuration / elapsed).toFixed(1);
+                    speedInfo = ` (🚀 x${speed} 배속)`;
+                }
+                onProgress(i, totalFrames, `렌더링 진행률 ${Math.round((i/totalFrames)*100)}%${speedInfo}`);
                 await new Promise(r => setTimeout(r, 0));
             }
 
@@ -294,18 +330,29 @@ class RenderService {
                  ctx.fillRect(0,0,width,height);
             }
 
-            // Visualizer Spectrum
+            // Visualizer Spectrum - Exact Logic Mirroring Visualizer.tsx
             ctx.save();
             ctx.translate(width/2, height/2);
             ctx.translate(visualizerSettings.positionX, visualizerSettings.positionY);
             ctx.scale(visualizerSettings.scale, visualizerSettings.scale);
             
             if (visualizerSettings.effects.mirror) {
-                ctx.save(); ctx.translate(0, -height/2); renderSpectrum(ctx); ctx.restore();
-                ctx.save(); ctx.scale(-1, 1); ctx.translate(0, -height/2); ctx.globalCompositeOperation = 'screen'; renderSpectrum(ctx); ctx.restore();
+                // Draw Left Half
+                ctx.save(); 
+                ctx.translate(0, -height/2); 
+                renderSpectrum(ctx, width / 2, height); // Pass width/2 to match Visualizer.tsx
+                ctx.restore();
+                
+                // Draw Right Half (Mirrored)
+                ctx.save(); 
+                ctx.scale(-1, 1); 
+                ctx.translate(0, -height/2); 
+                ctx.globalCompositeOperation = 'screen'; 
+                renderSpectrum(ctx, width / 2, height); // Pass width/2 to match Visualizer.tsx
+                ctx.restore();
             } else {
                 ctx.translate(-width/2, -height/2);
-                renderSpectrum(ctx);
+                renderSpectrum(ctx, width, height);
             }
             ctx.restore();
 
@@ -377,6 +424,7 @@ class RenderService {
         };
 
         // --- Execution Start ---
+        startTime = performance.now();
         onProgress(0, totalFrames, "영상 프레임 렌더링 중...");
 
         // 1. Initial Schedule: Queue up the first few frames (Lookahead buffer)

@@ -63,9 +63,11 @@ export const useAudioPlayer = (
     audioService.resume();
     audioService.setSmoothingConstant(visualizerSettings.sensitivity);
 
-    if (activeTrack.moodColor && !isExporting) {
-        setVisualizerSettings(prev => ({ ...prev, color: activeTrack.moodColor! }));
-    }
+    // REMOVED: Automatic mood color override. 
+    // This allows the user's manually set theme color (persisted in localStorage) to remain active.
+    // if (activeTrack.moodColor && !isExporting) {
+    //    setVisualizerSettings(prev => ({ ...prev, color: activeTrack.moodColor! }));
+    // }
 
     setCurrentTrack(activeTrack);
     

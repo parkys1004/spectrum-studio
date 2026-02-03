@@ -84,5 +84,6 @@ export enum VisualizerMode {
   EQUALIZER = 'EQUALIZER',    // Segmented LED style
   STARBURST = 'STARBURST',    // Radial lines from center
   BUTTERFLY = 'BUTTERFLY',    // Mirrored wing shape
-  AURORA = 'AURORA'           // New: Rainbow Gradient Wave
+  AURORA = 'AURORA',          // Rainbow Gradient Wave
+  SPECTRUM = 'SPECTRUM'       // New: Center-out Dot Spectrum (Multi-color)
 }

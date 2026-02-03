@@ -1,9 +1,10 @@
-import { Track, Folder } from '../types';
+import { Track, Folder, VisualizerSettings } from '../types';
 
 const DB_NAME = 'SpectrumStudioDB';
 const DB_VERSION = 1;
 const FILE_STORE = 'audio_files';
 const METADATA_KEY = 'spectrum_studio_library';
+const SETTINGS_KEY = 'spectrum_studio_settings';
 
 class StorageService {
   private dbPromise: Promise<IDBDatabase>;
@@ -72,6 +73,27 @@ class StorageService {
     } catch (e) {
       console.error('Failed to parse library', e);
       return null;
+    }
+  }
+
+  // --- Settings (LocalStorage) ---
+
+  saveSettings(settings: VisualizerSettings) {
+    try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (e) {
+        console.error("Failed to save settings", e);
+    }
+  }
+
+  loadSettings(): VisualizerSettings | null {
+    const json = localStorage.getItem(SETTINGS_KEY);
+    if (!json) return null;
+    try {
+        return JSON.parse(json);
+    } catch (e) {
+        console.error("Failed to parse settings", e);
+        return null;
     }
   }
 

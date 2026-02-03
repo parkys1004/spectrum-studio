@@ -400,3 +400,73 @@ export const drawAurora = (ctx: CanvasRenderingContext2D | OffscreenCanvasRender
 
     ctx.globalAlpha = 1.0;
 };
+
+// 12. Spectrum (Center-Out Rainbow Dots)
+export const drawSpectrum = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, data: Uint8Array, bufferLength: number, width: number, height: number, settings: VisualizerSettings) => {
+    const centerY = height / 2;
+    const meaningfulBufferLength = Math.floor(bufferLength * 0.7); // Drop high freq silence
+    
+    // Determine bar size
+    const gapX = 4;
+    // Calculate optimal bar width to fill screen
+    const availableWidth = width;
+    // Calculate how many bars we can fit with minimum width
+    const minBarWidth = 6;
+    let barWidth = Math.max(minBarWidth, (availableWidth / meaningfulBufferLength) - gapX);
+    
+    // Recalculate how many items to skip if bars are too dense
+    const itemsToDraw = Math.floor(availableWidth / (barWidth + gapX));
+    const step = Math.ceil(meaningfulBufferLength / itemsToDraw);
+
+    const dotSize = barWidth;
+    const gapY = 3;
+    
+    let x = (width - (itemsToDraw * (barWidth + gapX))) / 2; // Center horizontally
+    
+    // Pre-set shadow to avoid context switching cost inside loop if possible, 
+    // but color changes per bar so we must set it.
+    ctx.shadowBlur = 8;
+
+    for (let i = 0; i < meaningfulBufferLength; i += step) {
+        if (x > width) break;
+        
+        const val = data[i];
+        if (val < 5) { 
+            x += barWidth + gapX; 
+            continue; 
+        }
+
+        const amplitude = (val / 255) * (height / 2.2) * settings.amplitude;
+        
+        // Color mapping: Pink(340) -> Blue -> Green -> Yellow(40)
+        // Map i (0 to meaningfulBufferLength) to Hue (340 to 40)
+        const percent = i / meaningfulBufferLength;
+        const hue = Math.floor(340 - (percent * 300)); // Use integer for slightly faster string concat
+        
+        const color = `hsl(${hue}, 100%, 60%)`;
+        ctx.fillStyle = color;
+        ctx.shadowColor = color; // Reuse calculated color
+
+        const numDots = Math.floor(amplitude / (dotSize + gapY));
+        
+        // Draw Dots Center-Out
+        for (let j = 0; j < numDots; j++) {
+            const yOffset = j * (dotSize + gapY);
+            
+            // Center Dot (Only once at j=0? No, standard center-out)
+            
+            // Top
+            ctx.beginPath();
+            ctx.arc(x + dotSize/2, centerY - yOffset - dotSize/2, dotSize/2, 0, Math.PI*2);
+            ctx.fill();
+            
+            // Bottom (Mirror)
+            ctx.beginPath();
+            ctx.arc(x + dotSize/2, centerY + yOffset + dotSize/2, dotSize/2, 0, Math.PI*2);
+            ctx.fill();
+        }
+        
+        x += barWidth + gapX;
+    }
+    ctx.shadowBlur = 0;
+};

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Playlist from './components/Playlist';
 import Visualizer from './components/Visualizer';
 import EffectControls from './components/EffectControls';
@@ -12,19 +12,9 @@ import { VisualizerMode, VisualizerSettings } from './types';
 import { useLibrary } from './hooks/useLibrary';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useExporter } from './hooks/useExporter';
+import { storageService } from './services/storageService';
 
-const App: React.FC = () => {
-  // 1. Library & Data State
-  const { 
-      folders, tracks, currentFolderId, 
-      setCurrentFolderId, setTracks,
-      handleCreateFolder, handleFilesAdded, handleTrackMove, handleReorderTrack,
-      handleDeleteTrack
-  } = useLibrary();
-
-  // 2. Visualizer Settings State (Central Source of Truth)
-  const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>(VisualizerMode.BARS);
-  const [visualizerSettings, setVisualizerSettings] = useState<VisualizerSettings>({
+const DEFAULT_VISUALIZER_SETTINGS: VisualizerSettings = {
     color: '#8b5cf6', // Updated default to Violet to match theme
     lineThickness: 2,
     amplitude: 1.0,
@@ -64,7 +54,30 @@ const App: React.FC = () => {
         shakeStrength: 1.0,
         glitchStrength: 1.0
     }
+};
+
+const App: React.FC = () => {
+  // 1. Library & Data State
+  const { 
+      folders, tracks, currentFolderId, 
+      setCurrentFolderId, setTracks,
+      handleCreateFolder, handleFilesAdded, handleTrackMove, handleReorderTrack,
+      handleDeleteTrack
+  } = useLibrary();
+
+  // 2. Visualizer Settings State (Central Source of Truth)
+  const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>(VisualizerMode.BARS);
+  
+  // Initialize from storage or use defaults
+  const [visualizerSettings, setVisualizerSettings] = useState<VisualizerSettings>(() => {
+      const saved = storageService.loadSettings();
+      return saved || DEFAULT_VISUALIZER_SETTINGS;
   });
+
+  // Save settings whenever they change
+  useEffect(() => {
+      storageService.saveSettings(visualizerSettings);
+  }, [visualizerSettings]);
 
   const visualizerCanvasRef = useRef<HTMLCanvasElement>(null);
   

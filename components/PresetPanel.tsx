@@ -86,6 +86,11 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                 
                 {/* Fixed grid to 3 columns */}
                 <div className="grid grid-cols-3 gap-4">
+                    <SpectrumButton 
+                        mode={VisualizerMode.SPECTRUM} 
+                        label="SPECTRUM" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="12" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/></svg>}
+                    />
                      <SpectrumButton 
                         mode={VisualizerMode.AURORA} 
                         label="AURORA" 
