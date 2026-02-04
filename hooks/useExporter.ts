@@ -20,8 +20,11 @@ export const useExporter = (
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportStats, setExportStats] = useState<ExportStats>({ current: 0, total: 0, phase: '' });
   const [exportResolution, setExportResolution] = useState<'1080p' | '720p'>('1080p');
+  
+  // New state for pre-picked file handle
+  const [exportFileHandle, setExportFileHandle] = useState<any>(null);
+  const [exportFileName, setExportFileName] = useState<string>('');
 
-  // Ref to track export status for breaking loops if needed (though usually handled by state)
   const isExportingRef = useRef(isExporting);
   useEffect(() => {
       isExportingRef.current = isExporting;
@@ -41,29 +44,53 @@ export const useExporter = (
         phase: '준비 중...'
     });
     setExportResolution('1080p');
+    setExportFileHandle(null);
+    setExportFileName('');
     setShowExportModal(true);
   };
 
+  const pickExportLocation = async () => {
+      if ('showSaveFilePicker' in window) {
+          try {
+              const handle = await (window as any).showSaveFilePicker({
+                  suggestedName: `SpectrumStudio_Export_${Date.now()}.mp4`,
+                  types: [{
+                      description: 'MP4 Video File',
+                      accept: { 'video/mp4': ['.mp4'] },
+                  }],
+              });
+              setExportFileHandle(handle);
+              setExportFileName(handle.name);
+          } catch (e: any) {
+              if (e.name !== 'AbortError') {
+                  console.error("File picker error:", e);
+                  alert("파일 위치 선택 중 오류가 발생했습니다.");
+              }
+          }
+      } else {
+          alert("이 브라우저는 파일 시스템 접근 API를 지원하지 않습니다. 렌더링 시작 시 일반 다운로드로 처리됩니다.");
+      }
+  };
+
   const startPlaylistExport = async () => {
-      setShowExportModal(false);
       if (!currentTrack) return;
 
+      // 1. Pause Audio & Setup
       if (audioRef.current) {
           audioRef.current.pause();
       }
       setIsPlaying(false);
 
       const contextTracks = tracks.filter(t => t.folderId === currentTrack.folderId);
-      setIsExporting(true);
       
-      let fileHandle: FileSystemFileHandle | null = null;
-      let writableStream: FileSystemWritableFileStream | null = null;
+      let fileHandle = exportFileHandle;
+      let writableStream: any = null;
 
-      try {
-          // 1. Try to open File Save Picker (Direct Disk Streaming)
-          // This bypasses RAM limits by writing directly to disk
-          if ('showSaveFilePicker' in window) {
-              try {
+      // 2. Resolve File Handle & Stream (Before closing modal)
+      // This ensures user activation is preserved and errors can be shown in context
+      if ('showSaveFilePicker' in window) {
+          try {
+              if (!fileHandle) {
                   fileHandle = await (window as any).showSaveFilePicker({
                       suggestedName: `SpectrumStudio_Export_${Date.now()}.mp4`,
                       types: [{
@@ -71,18 +98,29 @@ export const useExporter = (
                           accept: { 'video/mp4': ['.mp4'] },
                       }],
                   });
-                  writableStream = await fileHandle!.createWritable();
-              } catch (pickerError) {
-                  // User cancelled picker
-                  console.info("Export cancelled by user");
-                  setIsExporting(false);
+              }
+
+              if (fileHandle) {
+                  // Attempt to create writable immediately to verify permission/capability
+                  writableStream = await fileHandle.createWritable();
+              }
+          } catch (error: any) {
+              if (error.name === 'AbortError') {
+                  // User cancelled the picker, just stop the process.
+                  // Do NOT close the modal, let them try again.
                   return;
               }
-          } else {
-              console.warn("File System Access API not supported. Falling back to in-memory rendering (Size limited).");
+              console.error("Export setup failed:", error);
+              alert("파일 저장 설정 중 오류가 발생했습니다. 권한을 확인해주세요.");
+              return;
           }
+      }
 
-          // 2. Start Rendering
+      // 3. Close Modal & Start Process
+      setShowExportModal(false);
+      setIsExporting(true);
+
+      try {
           const result = await renderService.renderPlaylist(
               contextTracks,
               visualizerSettings,
@@ -91,16 +129,12 @@ export const useExporter = (
               (current, total, phase) => {
                   setExportStats({ current, total, phase });
               },
-              writableStream // Pass stream if available
+              writableStream
           );
 
-          // 3. Handle Completion
           if (writableStream) {
-               // Stream mode: File is already saved.
-               // Just notify user (maybe play a sound or show a toast in future)
                console.log("Export completed to disk");
           } else if (result && result.url) {
-               // Legacy mode: Download Blob
                 const a = document.createElement('a');
                 a.href = result.url;
                 a.download = result.filename;
@@ -115,6 +149,8 @@ export const useExporter = (
           alert("렌더링 중 오류가 발생했습니다.");
       } finally {
           setIsExporting(false);
+          setExportFileHandle(null);
+          setExportFileName('');
       }
   };
 
@@ -132,6 +168,8 @@ export const useExporter = (
     setExportResolution,
     triggerExportModal,
     startPlaylistExport,
-    cancelExport
+    cancelExport,
+    pickExportLocation,
+    exportFileName
   };
 };
