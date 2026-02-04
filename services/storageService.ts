@@ -136,6 +136,18 @@ class StorageService {
       request.onerror = () => reject(request.error);
     });
   }
+
+  async clearAllFiles(): Promise<void> {
+    const db = await this.dbPromise;
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(FILE_STORE, 'readwrite');
+      const store = transaction.objectStore(FILE_STORE);
+      const request = store.clear();
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
 }
 
 export const storageService = new StorageService();

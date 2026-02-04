@@ -13,6 +13,7 @@ interface PlaylistProps {
   onMoveTrack: (trackId: string, folderId: string | null) => void;
   onReorderTrack: (sourceId: string, targetId: string) => void;
   onDeleteTrack: (trackId: string) => void;
+  onClearLibrary: () => void;
 }
 
 const Playlist: React.FC<PlaylistProps> = ({ 
@@ -26,7 +27,8 @@ const Playlist: React.FC<PlaylistProps> = ({
     onNavigate,
     onMoveTrack,
     onReorderTrack,
-    onDeleteTrack
+    onDeleteTrack,
+    onClearLibrary
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,10 +73,14 @@ const Playlist: React.FC<PlaylistProps> = ({
       e.dataTransfer.dropEffect = "move";
   };
 
-  const IconButton = ({ onClick, icon, label }: { onClick: () => void, icon: React.ReactNode, label: string }) => (
+  const IconButton = ({ onClick, icon, label, variant = 'default' }: { onClick: () => void, icon: React.ReactNode, label: string, variant?: 'default' | 'danger' }) => (
       <button 
         onClick={onClick}
-        className="flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-app-bg shadow-neu-btn hover:text-app-accent active:shadow-neu-pressed transition-all duration-200 group text-app-text"
+        className={`flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl shadow-neu-btn active:shadow-neu-pressed transition-all duration-200 group ${
+            variant === 'danger' 
+            ? 'bg-app-bg text-red-400 hover:text-red-500 hover:bg-red-50' 
+            : 'bg-app-bg text-app-text hover:text-app-accent'
+        }`}
         title={label}
       >
         <span className="transition-colors">{icon}</span>
@@ -94,6 +100,12 @@ const Playlist: React.FC<PlaylistProps> = ({
             onClick={() => fileInputRef.current?.click()}
             label="파일 가져오기"
             icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>}
+        />
+        <IconButton 
+            onClick={onClearLibrary}
+            label="전체 초기화"
+            variant="danger"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>}
         />
         <input 
           type="file" 

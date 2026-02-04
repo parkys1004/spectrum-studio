@@ -117,6 +117,25 @@ export const useLibrary = () => {
       }
   }, []);
 
+  const handleClearLibrary = useCallback(async () => {
+      try {
+          // 1. Clear Storage
+          await storageService.clearAllFiles();
+          
+          // 2. Clear State
+          setFolders([]);
+          setTracks([]);
+          setCurrentFolderId(null);
+          
+          // 3. Clear Cache
+          audioService.clearCache();
+          
+      } catch (e) {
+          console.error("Failed to clear library:", e);
+          alert("라이브러리 초기화 중 오류가 발생했습니다.");
+      }
+  }, []);
+
   return {
     folders,
     tracks,
@@ -127,6 +146,7 @@ export const useLibrary = () => {
     handleFilesAdded,
     handleTrackMove,
     handleReorderTrack,
-    handleDeleteTrack
+    handleDeleteTrack,
+    handleClearLibrary
   };
 };

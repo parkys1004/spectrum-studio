@@ -62,7 +62,7 @@ const App: React.FC = () => {
       folders, tracks, currentFolderId, 
       setCurrentFolderId, setTracks,
       handleCreateFolder, handleFilesAdded, handleTrackMove, handleReorderTrack,
-      handleDeleteTrack
+      handleDeleteTrack, handleClearLibrary
   } = useLibrary();
 
   // 2. Visualizer Settings State (Central Source of Truth)
@@ -83,6 +83,7 @@ const App: React.FC = () => {
   
   // UI State
   const [trackToDelete, setTrackToDelete] = useState<string | null>(null);
+  const [showClearLibraryModal, setShowClearLibraryModal] = useState(false);
 
   // 3. Audio Player Logic
   const audioPlayer = useAudioPlayer(
@@ -216,6 +217,29 @@ const App: React.FC = () => {
         </div>
       </Modal>
 
+       {/* Clear Library Confirmation Modal */}
+       <Modal
+        isOpen={showClearLibraryModal}
+        onClose={() => setShowClearLibraryModal(false)}
+        onConfirm={() => {
+            handleClearLibrary();
+            setShowClearLibraryModal(false);
+        }}
+        title="라이브러리 전체 초기화"
+        confirmText="전체 삭제"
+      >
+        <div className="text-center py-2">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-neu-pressed border-4 border-app-bg">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            </div>
+            <h3 className="text-xl font-bold text-app-text mb-3">모든 미디어를 삭제하시겠습니까?</h3>
+            <p className="text-app-textMuted leading-relaxed text-sm">
+                등록된 모든 폴더와 음악 파일이 라이브러리에서 제거됩니다.<br/>
+                저장된 파일 데이터도 함께 삭제되며, <span className="text-red-500 font-bold">이 작업은 되돌릴 수 없습니다.</span>
+            </p>
+        </div>
+      </Modal>
+
       {/* Main Grid Layout - Spaced for Neumorphism */}
       <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
         
@@ -237,6 +261,7 @@ const App: React.FC = () => {
                   onMoveTrack={handleTrackMove}
                   onReorderTrack={handleReorderTrack}
                   onDeleteTrack={setTrackToDelete}
+                  onClearLibrary={() => setShowClearLibraryModal(true)}
                 />
             </div>
         </BentoBox>
@@ -267,13 +292,13 @@ const App: React.FC = () => {
                     <button 
                         onClick={isExporting ? exporter.cancelExport : exporter.triggerExportModal}
                         disabled={!audioPlayer.currentTrack && !isExporting}
-                        className={`flex items-center space-x-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase transition-all tracking-tight ${
+                        className={`flex items-center space-x-2.5 px-6 py-2.5 rounded-full text-sm font-extrabold uppercase transition-all tracking-wide ${
                             isExporting 
                             ? 'bg-red-50 text-red-500 shadow-neu-pressed animate-pulse' 
-                            : 'bg-app-bg text-app-text shadow-neu-btn hover:text-app-accent active:shadow-neu-pressed'
+                            : 'bg-app-bg text-app-accent shadow-neu-btn hover:bg-app-accent hover:text-white active:shadow-neu-pressed'
                         }`}
                     >
-                        <div className={`w-2 h-2 rounded-full ${isExporting ? 'bg-red-500' : 'bg-app-accent'}`}></div>
+                        <div className={`w-3 h-3 rounded-full shadow-sm ${isExporting ? 'bg-red-500' : 'bg-current'}`}></div>
                         <span>{isExporting ? '작업 취소' : '내보내기'}</span>
                     </button>
                 }
