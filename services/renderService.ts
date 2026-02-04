@@ -122,9 +122,6 @@ class RenderService {
     const height = resolution === '1080p' ? 1080 : 720;
     const fps = 30;
     
-    // Optimization: Adjusted bitrates. 
-    // Visualizers compress well (black BG). 12Mbps is overkill. 
-    // 8Mbps for 1080p, 4Mbps for 720p is high quality enough and faster to write.
     const bitrate = resolution === '1080p' ? 8_000_000 : 4_000_000; 
 
     let muxerTarget: any;
@@ -139,7 +136,6 @@ class RenderService {
         video: { codec: 'avc', width, height },
         audio: { codec: 'aac', sampleRate, numberOfChannels: 2 },
         // Use 'in-memory' fastStart for RAM target to ensure MOOV atom is at start (better compatibility)
-        // For streaming, we rely on the stream capability.
         fastStart: writableStream ? false : 'in-memory' 
     });
 
@@ -152,8 +148,6 @@ class RenderService {
     }) as VideoEncoderWithState;
 
     // Codec Selection Logic
-    const is1080p = width > 1280 || height > 720;
-    // Main profile (avc1.4d00xx) is widely supported and efficient
     const mainCodec = `avc1.4d002a`; 
 
     const encoderConfig: any = {
@@ -163,8 +157,8 @@ class RenderService {
         bitrate, 
         framerate: fps,
         hardwareAcceleration: 'prefer-hardware', // Critical for speed
-        bitrateMode: 'variable', // VBR is usually faster and better for visualizers
-        latencyMode: 'quality' // 'realtime' might skip frames, 'quality' is better for offline render
+        bitrateMode: 'variable', 
+        latencyMode: 'quality' 
     };
 
     try {
@@ -214,7 +208,6 @@ class RenderService {
     effectRenderer.resize(width, height);
 
     // --- Load Assets (Async) ---
-    // Parallelize asset loading
     const [bgBitmap, logoBitmap, stickerBitmapRaw] = await Promise.all([
         visualizerSettings.backgroundImage ? fetch(visualizerSettings.backgroundImage).then(r => r.blob()).then(createImageBitmap).catch(() => null) : Promise.resolve(null),
         visualizerSettings.logoImage ? fetch(visualizerSettings.logoImage).then(r => r.blob()).then(createImageBitmap).catch(() => null) : Promise.resolve(null),
@@ -226,7 +219,6 @@ class RenderService {
     
     if (visualizerSettings.stickerImage && stickerBitmapRaw) {
         try {
-            // Re-create blob URL if needed or pass blob directly if GifController supported it (it expects string url currently)
              await gifController.load(visualizerSettings.stickerImage);
              if(!gifController.isLoaded) {
                  stickerBitmap = await createImageBitmap(stickerBitmapRaw);
@@ -237,7 +229,6 @@ class RenderService {
     // 5. Render Processor
     const totalFrames = Math.ceil(totalDuration * fps);
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    // Queue limits for backpressure
     const ENCODE_QUEUE_HIGH_WATER_MARK = 30; 
     const ENCODE_QUEUE_LOW_WATER_MARK = 10;
     let startTime = 0;
@@ -264,20 +255,19 @@ class RenderService {
         const processFrame = async (i: number) => {
             if (signal.aborted || this.hasEncoderError) return;
 
-            // --- Backpressure Control (Wait for GPU to catch up) ---
+            // --- Backpressure Control ---
             if (videoEncoder.encodeQueueSize > ENCODE_QUEUE_HIGH_WATER_MARK) {
-                // Poll until queue drops below low water mark
                 await new Promise<void>(resolve => {
                     const check = () => {
                         if (videoEncoder.encodeQueueSize < ENCODE_QUEUE_LOW_WATER_MARK) resolve();
-                        else setTimeout(check, 5); // 5ms poll
+                        else setTimeout(check, 5);
                     };
                     check();
                 });
             }
             
-            // UI Update Throttling
-            if (i % 30 === 0) { // Update more frequently (every 1s of video)
+            // UI Update
+            if (i % 30 === 0) { 
                 const elapsed = (performance.now() - startTime) / 1000;
                 let speedInfo = "";
                 if (elapsed > 1.0) {
@@ -287,17 +277,11 @@ class RenderService {
                 }
                 const percent = Math.round((i/totalFrames)*100);
                 onProgress(i, totalFrames, `렌더링 중... ${percent}%${speedInfo}`);
-                
-                // Yield to event loop to keep UI responsive
                 await new Promise(r => setTimeout(r, 0));
             }
 
-            // --- Audio Analysis ---
+            // --- Analysis & Draw ---
             const time = i / fps;
-            // Note: We use suspend() on offlineCtx to get data at specific times.
-            // Frequency data depends on where the context playhead is.
-            // Since we are stepping offlineCtx manually, getByteFrequencyData works correctly for that timestamp.
-
             if (visualizerMode === VisualizerMode.WAVE || visualizerMode === VisualizerMode.FILLED) {
                 analyser.getByteTimeDomainData(dataArray);
             } else {
@@ -307,28 +291,21 @@ class RenderService {
             // Beat Detection
             let bassEnergy = 0;
             if (visualizerMode !== VisualizerMode.WAVE && visualizerMode !== VisualizerMode.FILLED) {
-                // Optimization: Unroll loop for small iteration
                 bassEnergy = (dataArray[0] + dataArray[1] + dataArray[2] + dataArray[3] + dataArray[4]) / 5;
             } else {
                 let sum = 0;
-                // Sample down for beat detection speed
                 const step = 4;
                 for(let k=0; k<dataArray.length; k+=step) sum += Math.abs(dataArray[k] - 128);
                 bassEnergy = (sum / (dataArray.length/step)) * 2; 
             }
             const isBeat = bassEnergy > 200;
             
-            // --- Logic Update ---
             effectRenderer.update(isBeat, bassEnergy, visualizerSettings.effectParams);
 
-            // --- Drawing ---
-            // Clear with opaque black (faster than clearRect + fill)
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, width, height);
             
             ctx.save();
-
-            // Global Transformations
             if (visualizerSettings.effects.shake && isBeat) {
                 const s = visualizerSettings.effectParams.shakeStrength || 1;
                 ctx.translate((Math.random()-0.5)*20*s, (Math.random()-0.5)*20*s);
@@ -401,7 +378,6 @@ class RenderService {
 
             effectRenderer.draw(ctx, visualizerSettings.effects);
 
-            // Glitch Effect (Post-processing)
             if (visualizerSettings.effects.glitch && isBeat) {
                 const glStr = visualizerSettings.effectParams.glitchStrength || 1.0;
                 const sliceHeight = Math.random() * 50 + 10;
@@ -416,15 +392,13 @@ class RenderService {
 
             ctx.restore(); 
 
-            // Create VideoFrame
-            // NOTE: 'duration' is optional but helpful for the encoder
+            // Video Encoding
             const frame = new VideoFrame(canvas, { 
                 timestamp: i * (1_000_000 / fps),
                 duration: 1_000_000 / fps
             });
             
             try {
-                // Keyframe insertion: Every 2 seconds (60 frames)
                 const keyFrame = i % 60 === 0;
                 videoEncoder.encode(frame, { keyFrame });
             } catch(e) {
@@ -433,12 +407,9 @@ class RenderService {
             }
             frame.close();
 
-            // Scheduling
-            // To ensure AnalyserNode has correct data, we must advance the OfflineAudioContext
+            // Schedule Next
             if (i + 1 < totalFrames) {
                 const nextTime = (i + 1) / fps;
-                // suspend() allows us to pause rendering at a specific time, 
-                // read the analyser data, draw the frame, then resume.
                 offlineCtx.suspend(nextTime)
                     .then(() => processFrame(i + 1))
                     .catch(err => console.warn("Suspend scheduling failed:", err));
@@ -446,50 +417,70 @@ class RenderService {
 
             try {
                 offlineCtx.resume();
-            } catch(e) {
-                // Resume might fail if context is already closed or running, ignore safely
-            }
+            } catch(e) {}
         };
 
-        // --- Start Rendering Loop ---
+        // --- Start Rendering ---
         startTime = performance.now();
         onProgress(0, totalFrames, "영상 프레임 렌더링 중...");
 
-        // Kickoff
         offlineCtx.suspend(0).then(() => processFrame(0));
-        
-        // This promise resolves when the *Audio* rendering is fully complete.
-        // The processFrame recursion handles the Video/Canvas part in sync with the audio clock.
         const renderedBuffer = await offlineCtx.startRendering();
 
-        // --- Finalization ---
-        onProgress(totalFrames, totalFrames, "비디오 인코딩 정리 중 (Finalizing)...");
-        
+        // --- Finalize Video ---
+        onProgress(totalFrames, totalFrames, "비디오 인코딩 정리 중...");
         if (!this.hasEncoderError) {
              await videoEncoder.flush();
         }
         videoEncoder.close();
 
-        onProgress(totalFrames, totalFrames, "오디오 트랙 병합 및 저장 중...");
+        // --- Chunked Audio Encoding (Fix for 0 byte file) ---
+        onProgress(totalFrames, totalFrames, "오디오 트랙 처리 및 저장 중...");
         
-        // Encode Audio
-        const interleavedAudio = this.interleaveAudio(renderedBuffer);
-        const audioData = new AudioData({
-            format: 'f32', 
-            sampleRate,
-            numberOfFrames: renderedBuffer.length,
-            numberOfChannels: 2,
-            timestamp: 0,
-            data: interleavedAudio
-        });
+        // Split audio into small chunks (e.g. 1 second) to prevent AudioEncoder crash/drop
+        const CHUNK_DURATION_SEC = 1;
+        const chunkFrames = sampleRate * CHUNK_DURATION_SEC;
+        const totalAudioFrames = renderedBuffer.length;
+
+        const leftChannel = renderedBuffer.getChannelData(0);
+        const rightChannel = renderedBuffer.getChannelData(1);
+
+        for (let i = 0; i < totalAudioFrames; i += chunkFrames) {
+            if (this.hasEncoderError) break;
+
+            const framesToEncode = Math.min(chunkFrames, totalAudioFrames - i);
+            
+            // Interleave on the fly to save memory
+            const chunkBuffer = new Float32Array(framesToEncode * 2);
+            for (let j = 0; j < framesToEncode; j++) {
+                chunkBuffer[j * 2] = leftChannel[i + j];
+                chunkBuffer[j * 2 + 1] = rightChannel[i + j];
+            }
+
+            const audioData = new AudioData({
+                format: 'f32',
+                sampleRate: sampleRate,
+                numberOfFrames: framesToEncode,
+                numberOfChannels: 2,
+                timestamp: (i / sampleRate) * 1_000_000, // microseconds
+                data: chunkBuffer
+            });
+            
+            audioEncoder.encode(audioData);
+            audioData.close();
+            
+            // Simple yield to prevent UI freeze during heavy encoding loop
+            if (i % (chunkFrames * 5) === 0) {
+                 await new Promise(r => setTimeout(r, 0));
+            }
+        }
         
         if (!this.hasEncoderError) {
-             audioEncoder.encode(audioData);
-             audioData.close();
              await audioEncoder.flush();
         }
         audioEncoder.close();
 
+        // Finalize Muxer
         muxer.finalize();
 
         // Cleanup
@@ -504,6 +495,10 @@ class RenderService {
         }
 
         const { buffer } = (muxer.target as Muxer.ArrayBufferTarget);
+        if (buffer.byteLength === 0) {
+            throw new Error("생성된 파일 크기가 0바이트입니다. 인코딩 과정에서 오류가 발생했을 수 있습니다.");
+        }
+
         const blob = new Blob([buffer], { type: 'video/mp4' });
         const url = URL.createObjectURL(blob);
         return { url, filename: `SpectrumStudio_Export_${Date.now()}.mp4` };
@@ -512,27 +507,6 @@ class RenderService {
         console.error("Rendering Process Failed", e);
         throw e;
     }
-  }
-
-  // Optimized Audio Interleaving
-  private interleaveAudio(buffer: AudioBuffer): Float32Array {
-      const numChannels = buffer.numberOfChannels;
-      const length = buffer.length;
-      const result = new Float32Array(length * numChannels);
-      
-      // Get all channel data pointers first to avoid method calls in loop
-      const channels = [];
-      for(let i=0; i<numChannels; i++) channels.push(buffer.getChannelData(i));
-
-      // Standard interleaving: [L, R, L, R...]
-      // Optimized for write locality
-      let ptr = 0;
-      for (let i = 0; i < length; i++) {
-          for (let ch = 0; ch < numChannels; ch++) {
-              result[ptr++] = channels[ch][i];
-          }
-      }
-      return result;
   }
 
   cancel() {
