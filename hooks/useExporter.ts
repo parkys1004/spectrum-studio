@@ -56,26 +56,60 @@ export const useExporter = (
       const contextTracks = tracks.filter(t => t.folderId === currentTrack.folderId);
       setIsExporting(true);
       
+      let fileHandle: FileSystemFileHandle | null = null;
+      let writableStream: FileSystemWritableFileStream | null = null;
+
       try {
-          const { url, filename } = await renderService.renderPlaylist(
+          // 1. Try to open File Save Picker (Direct Disk Streaming)
+          // This bypasses RAM limits by writing directly to disk
+          if ('showSaveFilePicker' in window) {
+              try {
+                  fileHandle = await (window as any).showSaveFilePicker({
+                      suggestedName: `SpectrumStudio_Export_${Date.now()}.mp4`,
+                      types: [{
+                          description: 'MP4 Video File',
+                          accept: { 'video/mp4': ['.mp4'] },
+                      }],
+                  });
+                  writableStream = await fileHandle!.createWritable();
+              } catch (pickerError) {
+                  // User cancelled picker
+                  console.info("Export cancelled by user");
+                  setIsExporting(false);
+                  return;
+              }
+          } else {
+              console.warn("File System Access API not supported. Falling back to in-memory rendering (Size limited).");
+          }
+
+          // 2. Start Rendering
+          const result = await renderService.renderPlaylist(
               contextTracks,
               visualizerSettings,
               visualizerMode,
               exportResolution,
               (current, total, phase) => {
                   setExportStats({ current, total, phase });
-              }
+              },
+              writableStream // Pass stream if available
           );
 
-          if (url) {
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+          // 3. Handle Completion
+          if (writableStream) {
+               // Stream mode: File is already saved.
+               // Just notify user (maybe play a sound or show a toast in future)
+               console.log("Export completed to disk");
+          } else if (result && result.url) {
+               // Legacy mode: Download Blob
+                const a = document.createElement('a');
+                a.href = result.url;
+                a.download = result.filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(result.url);
           }
+
       } catch (e) {
           console.error(e);
           alert("렌더링 중 오류가 발생했습니다.");

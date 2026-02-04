@@ -118,7 +118,7 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
       } else {
           let sum = 0;
           for(let i=0; i<bufferLength; i++) sum += Math.abs(dataArray[i] - 128);
-          bassEnergy = (sum / bufferLength) * 2; 
+          bassEnergy = (sum / dataArray.length) * 2; 
       }
       if (!isPlaying) bassEnergy = 0;
       const isBeat = bassEnergy > 200; 
@@ -141,7 +141,8 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
           ctx.translate(-width/2, -height/2);
       }
 
-      if (bgImageRef.current && bgImageRef.current.complete) {
+      // Draw Background
+      if (bgImageRef.current && bgImageRef.current.complete && bgImageRef.current.naturalWidth > 0) {
           const img = bgImageRef.current;
           const imgRatio = img.width / img.height;
           const canvasRatio = width / height;
@@ -198,7 +199,8 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
       }
       ctx.restore();
 
-      if (logoImageRef.current && logoImageRef.current.complete) {
+      // Draw Logo
+      if (logoImageRef.current && logoImageRef.current.complete && logoImageRef.current.naturalWidth > 0) {
           const img = logoImageRef.current;
           const logoScale = currentSettings.logoScale || 1.0;
           const baseSize = Math.min(width, height) * 0.15;
@@ -212,6 +214,7 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
           ctx.globalAlpha = 1.0;
       }
 
+      // Draw Sticker/GIF
       let stickerSource: CanvasImageSource | null = null;
       let sAspectRatio = 1.0;
       let sWidth = 0;
@@ -219,7 +222,7 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
       if (gifControllerRef.current.isLoaded) {
           const frame = gifControllerRef.current.getFrame(animationTimeRef.current);
           if (frame) { stickerSource = frame; sWidth = frame.width; sHeight = frame.height; sAspectRatio = sWidth / sHeight; }
-      } else if (stickerImageRef.current && stickerImageRef.current.complete) {
+      } else if (stickerImageRef.current && stickerImageRef.current.complete && stickerImageRef.current.naturalWidth > 0) {
           stickerSource = stickerImageRef.current; sWidth = stickerImageRef.current.width; sHeight = stickerImageRef.current.height; sAspectRatio = sWidth / sHeight;
       }
 
