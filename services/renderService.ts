@@ -51,6 +51,20 @@ class RenderService {
   private abortController: AbortController | null = null;
   private hasEncoderError = false;
 
+  // Helper to wait for encoder queue to drain (Backpressure)
+  private async waitForQueue(encoder: { encodeQueueSize: number }, limit: number) {
+      if (encoder.encodeQueueSize > limit) {
+          await new Promise<void>(resolve => {
+              const checkInterval = setInterval(() => {
+                  if (encoder.encodeQueueSize < limit / 2) {
+                      clearInterval(checkInterval);
+                      resolve();
+                  }
+              }, 10);
+          });
+      }
+  }
+
   async renderPlaylist(
     tracks: Track[], 
     visualizerSettings: VisualizerSettings,
@@ -105,8 +119,15 @@ class RenderService {
     const frameCount = Math.ceil(sampleRate * totalDuration);
     if (!frameCount || frameCount <= 0) throw new Error("오디오 길이 계산 오류");
 
-    // Important: Use offline context for faster-than-realtime mixing
-    const offlineCtx = new OfflineAudioContext(2, frameCount, sampleRate);
+    // Use OfflineAudioContext for mixing
+    // Note: Creating a very large OfflineAudioContext can fail on some devices (OOM).
+    // If this fails, we might need to implement segmented processing, but for now we try/catch.
+    let offlineCtx: OfflineAudioContext;
+    try {
+        offlineCtx = new OfflineAudioContext(2, frameCount, sampleRate);
+    } catch (e) {
+        throw new Error("오디오 길이가 너무 길어 메모리를 할당할 수 없습니다. 트랙을 나누어 시도해주세요.");
+    }
     
     let offset = 0;
     decodedBuffers.forEach(buf => {
@@ -135,7 +156,6 @@ class RenderService {
         target: muxerTarget,
         video: { codec: 'avc', width, height },
         audio: { codec: 'aac', sampleRate, numberOfChannels: 2 },
-        // Use 'in-memory' fastStart for RAM target to ensure MOOV atom is at start (better compatibility)
         fastStart: writableStream ? false : 'in-memory' 
     });
 
@@ -201,7 +221,7 @@ class RenderService {
     const canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext('2d', { 
         alpha: false, 
-        desynchronized: true // Small speedup
+        desynchronized: true 
     })!;
     
     const effectRenderer = new EffectRenderer();
@@ -229,8 +249,6 @@ class RenderService {
     // 5. Render Processor
     const totalFrames = Math.ceil(totalDuration * fps);
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    const ENCODE_QUEUE_HIGH_WATER_MARK = 30; 
-    const ENCODE_QUEUE_LOW_WATER_MARK = 10;
     let startTime = 0;
 
     const renderSpectrum = (context: OffscreenCanvasRenderingContext2D, w: number, h: number) => {
@@ -256,15 +274,7 @@ class RenderService {
             if (signal.aborted || this.hasEncoderError) return;
 
             // --- Backpressure Control ---
-            if (videoEncoder.encodeQueueSize > ENCODE_QUEUE_HIGH_WATER_MARK) {
-                await new Promise<void>(resolve => {
-                    const check = () => {
-                        if (videoEncoder.encodeQueueSize < ENCODE_QUEUE_LOW_WATER_MARK) resolve();
-                        else setTimeout(check, 5);
-                    };
-                    check();
-                });
-            }
+            await this.waitForQueue(videoEncoder, 30);
             
             // UI Update
             if (i % 30 === 0) { 
@@ -277,6 +287,7 @@ class RenderService {
                 }
                 const percent = Math.round((i/totalFrames)*100);
                 onProgress(i, totalFrames, `렌더링 중... ${percent}%${speedInfo}`);
+                // Yield to event loop
                 await new Promise(r => setTimeout(r, 0));
             }
 
@@ -403,7 +414,7 @@ class RenderService {
                 videoEncoder.encode(frame, { keyFrame });
             } catch(e) {
                 console.error("Frame encoding failed", e);
-                this.hasEncoderError = true;
+                // Don't set global error for single frame skip, try to continue
             }
             frame.close();
 
@@ -425,16 +436,20 @@ class RenderService {
         onProgress(0, totalFrames, "영상 프레임 렌더링 중...");
 
         offlineCtx.suspend(0).then(() => processFrame(0));
+        
+        // This promise resolves when the offline context finishes processing audio
         const renderedBuffer = await offlineCtx.startRendering();
 
         // --- Finalize Video ---
         onProgress(totalFrames, totalFrames, "비디오 인코딩 정리 중...");
-        if (!this.hasEncoderError) {
-             await videoEncoder.flush();
+        try {
+            await videoEncoder.flush();
+        } catch(e) {
+            console.warn("Video flush warning:", e);
         }
         videoEncoder.close();
 
-        // --- Chunked Audio Encoding (Fix for 0 byte file) ---
+        // --- Chunked Audio Encoding ---
         onProgress(totalFrames, totalFrames, "오디오 트랙 처리 및 저장 중...");
         
         // Split audio into small chunks (e.g. 1 second) to prevent AudioEncoder crash/drop
@@ -447,6 +462,9 @@ class RenderService {
 
         for (let i = 0; i < totalAudioFrames; i += chunkFrames) {
             if (this.hasEncoderError) break;
+            
+            // Audio Backpressure Check
+            await this.waitForQueue(audioEncoder, 30);
 
             const framesToEncode = Math.min(chunkFrames, totalAudioFrames - i);
             
@@ -457,31 +475,42 @@ class RenderService {
                 chunkBuffer[j * 2 + 1] = rightChannel[i + j];
             }
 
-            const audioData = new AudioData({
-                format: 'f32',
-                sampleRate: sampleRate,
-                numberOfFrames: framesToEncode,
-                numberOfChannels: 2,
-                timestamp: (i / sampleRate) * 1_000_000, // microseconds
-                data: chunkBuffer
-            });
+            try {
+                const audioData = new AudioData({
+                    format: 'f32',
+                    sampleRate: sampleRate,
+                    numberOfFrames: framesToEncode,
+                    numberOfChannels: 2,
+                    timestamp: (i / sampleRate) * 1_000_000, // microseconds
+                    data: chunkBuffer
+                });
+                
+                audioEncoder.encode(audioData);
+                audioData.close();
+            } catch(e) {
+                console.error("Audio Chunk Encoding Error:", e);
+                // Continue to try and save at least partial/video
+            }
             
-            audioEncoder.encode(audioData);
-            audioData.close();
-            
-            // Simple yield to prevent UI freeze during heavy encoding loop
+            // Yield to event loop to prevent freezing
             if (i % (chunkFrames * 5) === 0) {
                  await new Promise(r => setTimeout(r, 0));
             }
         }
         
-        if (!this.hasEncoderError) {
-             await audioEncoder.flush();
+        try {
+            await audioEncoder.flush();
+        } catch (e) {
+            console.warn("Audio flush warning:", e);
         }
         audioEncoder.close();
 
-        // Finalize Muxer
-        muxer.finalize();
+        // Finalize Muxer - MUST be called
+        try {
+            muxer.finalize();
+        } catch (e) {
+            console.error("Muxer finalize error", e);
+        }
 
         // Cleanup
         if(bgBitmap) bgBitmap.close();
@@ -496,7 +525,7 @@ class RenderService {
 
         const { buffer } = (muxer.target as Muxer.ArrayBufferTarget);
         if (buffer.byteLength === 0) {
-            throw new Error("생성된 파일 크기가 0바이트입니다. 인코딩 과정에서 오류가 발생했을 수 있습니다.");
+            throw new Error("생성된 파일 크기가 0바이트입니다. 브라우저가 인코딩을 지원하지 않거나 메모리가 부족할 수 있습니다.");
         }
 
         const blob = new Blob([buffer], { type: 'video/mp4' });
@@ -505,6 +534,9 @@ class RenderService {
 
     } catch (e) {
         console.error("Rendering Process Failed", e);
+        // Ensure cleanup if fatal error occurs
+        try { videoEncoder.close(); } catch {}
+        try { audioEncoder.close(); } catch {}
         throw e;
     }
   }
