@@ -2,8 +2,8 @@ import React from 'react';
 import { VisualizerMode, VisualizerSettings } from '../types';
 
 interface PresetPanelProps {
-    currentMode: VisualizerMode;
-    onModeChange: (mode: VisualizerMode) => void;
+    currentMode: VisualizerMode | null;
+    onModeChange: (mode: VisualizerMode | null) => void;
     settings: VisualizerSettings;
     onSettingsChange: (newSettings: VisualizerSettings) => void;
 }
@@ -25,12 +25,12 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
         });
     };
 
-    // Updated SpectrumButton to match EffectButton styling
+    // Updated SpectrumButton with toggle logic
     const SpectrumButton = ({ mode, label, icon }: { mode: VisualizerMode, label: string, icon: React.ReactNode }) => {
         const isActive = currentMode === mode;
         return (
             <button
-                onClick={() => onModeChange(mode)}
+                onClick={() => onModeChange(isActive ? null : mode)}
                 className={`relative w-full aspect-[4/3] rounded-2xl flex flex-col items-center justify-center p-2 transition-all duration-200 group ${
                     isActive
                         ? 'bg-app-bg shadow-neu-pressed text-app-accent'

@@ -66,7 +66,7 @@ const App: React.FC = () => {
   } = useLibrary();
 
   // 2. Visualizer Settings State (Central Source of Truth)
-  const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>(VisualizerMode.BARS);
+  const [visualizerMode, setVisualizerMode] = useState<VisualizerMode | null>(VisualizerMode.BARS);
   
   // Initialize from storage or use defaults
   const [visualizerSettings, setVisualizerSettings] = useState<VisualizerSettings>(() => {

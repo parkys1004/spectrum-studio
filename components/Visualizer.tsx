@@ -11,7 +11,7 @@ import { GifController } from '../utils/gifUtils';
 
 interface VisualizerProps {
   isPlaying: boolean;
-  mode: VisualizerMode;
+  mode: VisualizerMode | null;
   settings: VisualizerSettings;
 }
 
@@ -168,6 +168,7 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
       }
 
       const renderSpectrum = (renderWidth: number, renderHeight: number) => {
+          if (!mode) return;
           switch (mode) {
             case VisualizerMode.BARS: drawBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
             case VisualizerMode.WAVE: drawLine(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
@@ -266,11 +267,13 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
              </div>
              
              {/* Minimal Overlay */}
-            <div className="absolute top-6 right-6 pointer-events-none z-10 opacity-60">
-                <span className="text-[10px] text-white font-mono tracking-widest uppercase shadow-black drop-shadow-md bg-black/40 px-2 py-1 rounded">
-                    {mode}
-                </span>
-            </div>
+            {mode && (
+                <div className="absolute top-6 right-6 pointer-events-none z-10 opacity-60">
+                    <span className="text-[10px] text-white font-mono tracking-widest uppercase shadow-black drop-shadow-md bg-black/40 px-2 py-1 rounded">
+                        {mode}
+                    </span>
+                </div>
+            )}
         </div>
     </div>
   );

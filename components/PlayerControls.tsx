@@ -11,8 +11,8 @@ interface PlayerControlsProps {
   onSeek: (time: number) => void;
   onNext: () => void;
   onPrev: () => void;
-  visualizerMode: VisualizerMode;
-  onModeChange: (mode: VisualizerMode) => void;
+  visualizerMode: VisualizerMode | null;
+  onModeChange: (mode: VisualizerMode | null) => void;
 }
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({

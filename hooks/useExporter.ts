@@ -14,7 +14,7 @@ export const useExporter = (
     audioRef: React.RefObject<HTMLAudioElement>,
     setIsPlaying: (playing: boolean) => void,
     visualizerSettings: VisualizerSettings,
-    visualizerMode: VisualizerMode
+    visualizerMode: VisualizerMode | null
 ) => {
   const [isExporting, setIsExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
