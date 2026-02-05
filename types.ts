@@ -85,5 +85,7 @@ export enum VisualizerMode {
   STARBURST = 'STARBURST',    // Radial lines from center
   BUTTERFLY = 'BUTTERFLY',    // Mirrored wing shape
   AURORA = 'AURORA',          // Rainbow Gradient Wave
-  SPECTRUM = 'SPECTRUM'       // New: Center-out Dot Spectrum (Multi-color)
+  SPECTRUM = 'SPECTRUM',      // Center-out Dot Spectrum (Multi-color)
+  DOT_WAVE = 'DOT_WAVE',      // New: Horizontal wave of dots
+  LED_BARS = 'LED_BARS'       // New: Rainbow Segmented Bars
 }

@@ -453,8 +453,6 @@ export const drawSpectrum = (ctx: CanvasRenderingContext2D | OffscreenCanvasRend
         for (let j = 0; j < numDots; j++) {
             const yOffset = j * (dotSize + gapY);
             
-            // Center Dot (Only once at j=0? No, standard center-out)
-            
             // Top
             ctx.beginPath();
             ctx.arc(x + dotSize/2, centerY - yOffset - dotSize/2, dotSize/2, 0, Math.PI*2);
@@ -463,6 +461,104 @@ export const drawSpectrum = (ctx: CanvasRenderingContext2D | OffscreenCanvasRend
             // Bottom (Mirror)
             ctx.beginPath();
             ctx.arc(x + dotSize/2, centerY + yOffset + dotSize/2, dotSize/2, 0, Math.PI*2);
+            ctx.fill();
+        }
+        
+        x += barWidth + gapX;
+    }
+    ctx.shadowBlur = 0;
+};
+
+// 13. Dot Wave (Horizontal Dots)
+export const drawDotWave = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, data: Uint8Array, bufferLength: number, width: number, height: number, settings: VisualizerSettings) => {
+    const centerY = height / 2;
+    const meaningfulLength = Math.floor(bufferLength * 0.75);
+    const gapX = 4;
+    const dotSize = Math.max(2, (width / meaningfulLength) - gapX);
+    const gapY = 4;
+    
+    let x = (width - (meaningfulLength * (dotSize + gapX))) / 2;
+    if (x < 0) x = 0;
+
+    for (let i = 0; i < meaningfulLength; i++) {
+        const val = data[i];
+        if (x > width) break;
+
+        // Rainbow gradient x-axis
+        const hue = (i / meaningfulLength) * 360;
+        ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+        
+        if (val > 10) {
+            const amplitude = (val / 255) * height * settings.amplitude * 0.8;
+            const numDots = Math.floor(amplitude / (dotSize + gapY));
+            
+            // Draw center dot
+            ctx.beginPath();
+            ctx.arc(x + dotSize/2, centerY, dotSize/2, 0, Math.PI*2);
+            ctx.fill();
+
+            // Draw vertically expanding dots
+            for (let j = 1; j <= numDots / 2; j++) {
+                const offset = j * (dotSize + gapY);
+                
+                // Up
+                ctx.beginPath();
+                ctx.arc(x + dotSize/2, centerY - offset, dotSize/2, 0, Math.PI*2);
+                ctx.fill();
+                
+                // Down
+                ctx.beginPath();
+                ctx.arc(x + dotSize/2, centerY + offset, dotSize/2, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+        x += dotSize + gapX;
+    }
+};
+
+// 14. LED Bars (Segmented Rainbow)
+export const drawLedBars = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, data: Uint8Array, bufferLength: number, width: number, height: number, settings: VisualizerSettings) => {
+    const meaningfulLength = Math.floor(bufferLength * 0.7);
+    const gapX = 4;
+    const barWidth = Math.max(4, (width / meaningfulLength) - gapX);
+    const segmentHeight = 6;
+    const gapY = 2;
+
+    let x = (width - (meaningfulLength * (barWidth + gapX))) / 2;
+    if (x < 0) x = 0;
+
+    for (let i = 0; i < meaningfulLength; i++) {
+        if (x > width) break;
+        
+        const val = data[i];
+        
+        // Gradient Color (Purple -> Red -> Yellow -> Green -> Blue)
+        const hue = 320 - ((i / meaningfulLength) * 280); 
+        ctx.fillStyle = `hsl(${hue}, 100%, 55%)`;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = `hsl(${hue}, 100%, 55%)`;
+
+        const barHeight = (val / 255) * height * settings.amplitude * 0.8;
+        const numSegments = Math.floor(barHeight / (segmentHeight + gapY));
+
+        for (let j = 0; j < numSegments; j++) {
+            const y = height - (j * (segmentHeight + gapY)) - 10; // padding bottom
+            
+            // Manual Rounded Rect
+            ctx.beginPath();
+            const r = 2;
+            const bw = barWidth;
+            const sh = segmentHeight;
+            
+            ctx.moveTo(x + r, y - sh);
+            ctx.lineTo(x + bw - r, y - sh);
+            ctx.quadraticCurveTo(x + bw, y - sh, x + bw, y - sh + r);
+            ctx.lineTo(x + bw, y - r);
+            ctx.quadraticCurveTo(x + bw, y, x + bw - r, y);
+            ctx.lineTo(x + r, y);
+            ctx.quadraticCurveTo(x, y, x, y - r);
+            ctx.lineTo(x, y - sh + r);
+            ctx.quadraticCurveTo(x, y - sh, x + r, y - sh);
             ctx.fill();
         }
         

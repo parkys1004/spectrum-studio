@@ -87,6 +87,16 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                 {/* Fixed grid to 3 columns */}
                 <div className="grid grid-cols-3 gap-4">
                     <SpectrumButton 
+                        mode={VisualizerMode.DOT_WAVE} 
+                        label="DOT WAVE" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="10" cy="8" r="1.5"/><circle cx="10" cy="16" r="1.5"/><circle cx="14" cy="4" r="1.5"/><circle cx="14" cy="20" r="1.5"/><circle cx="18" cy="8" r="1.5"/><circle cx="18" cy="16" r="1.5"/><circle cx="22" cy="12" r="1.5"/></svg>}
+                    />
+                    <SpectrumButton 
+                        mode={VisualizerMode.LED_BARS} 
+                        label="LED BARS" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="10" width="4" height="11" rx="1"/><rect x="9" y="6" width="4" height="15" rx="1"/><rect x="15" y="14" width="4" height="7" rx="1"/><rect x="4" y="11" width="2" height="2" fill="white" fillOpacity="0.3"/><rect x="10" y="7" width="2" height="2" fill="white" fillOpacity="0.3"/><rect x="16" y="15" width="2" height="2" fill="white" fillOpacity="0.3"/></svg>}
+                    />
+                     <SpectrumButton 
                         mode={VisualizerMode.SPECTRUM} 
                         label="SPECTRUM" 
                         icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="12" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/></svg>}

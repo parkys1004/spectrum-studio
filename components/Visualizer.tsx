@@ -4,7 +4,7 @@ import { VisualizerMode, VisualizerSettings } from '../types';
 import { 
     drawBars, drawLine, drawCircle, 
     drawFilledWave, drawDualBars, drawRipple, 
-    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum
+    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars
 } from '../utils/drawUtils';
 import { EffectRenderer } from '../utils/effectRenderer';
 import { GifController } from '../utils/gifUtils';
@@ -182,6 +182,8 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
             case VisualizerMode.BUTTERFLY: drawButterfly(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
             case VisualizerMode.AURORA: drawAurora(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
             case VisualizerMode.SPECTRUM: drawSpectrum(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
+            case VisualizerMode.DOT_WAVE: drawDotWave(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
+            case VisualizerMode.LED_BARS: drawLedBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
             default: drawBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
           }
       };

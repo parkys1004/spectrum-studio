@@ -3,7 +3,7 @@ import * as Muxer from 'mp4-muxer';
 import { 
     drawBars, drawLine, drawCircle, 
     drawFilledWave, drawDualBars, drawRipple, 
-    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum
+    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars
 } from '../utils/drawUtils';
 import { EffectRenderer } from '../utils/effectRenderer';
 import { audioService } from './audioService';
@@ -291,6 +291,8 @@ class RenderService {
             case VisualizerMode.BUTTERFLY: drawButterfly(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
             case VisualizerMode.AURORA: drawAurora(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
             case VisualizerMode.SPECTRUM: drawSpectrum(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.DOT_WAVE: drawDotWave(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
+            case VisualizerMode.LED_BARS: drawLedBars(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
             default: drawBars(context, dataArray, dataArray.length, w, h, visualizerSettings);
          }
     };
