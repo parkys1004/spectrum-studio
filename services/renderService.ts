@@ -78,6 +78,11 @@ class RenderService {
     this.hasEncoderError = false;
     const signal = this.abortController.signal;
 
+    // Safety check for Muxer
+    if (typeof Muxer === 'undefined' && !(window as any).Muxer) {
+         throw new Error("MP4 Muxer 라이브러리가 로드되지 않았습니다. 네트워크 상태를 확인하거나 새로고침 해주세요.");
+    }
+
     if (tracks.length === 0) throw new Error("No tracks to render");
 
     // 1. Load Audio Buffers
@@ -115,18 +120,20 @@ class RenderService {
     }
 
     // 2. Setup Offline Context
-    const sampleRate = 48000;
+    // Use 44100Hz for compatibility and lower memory usage
+    const sampleRate = 44100;
     const frameCount = Math.ceil(sampleRate * totalDuration);
-    if (!frameCount || frameCount <= 0) throw new Error("오디오 길이 계산 오류");
+    
+    // Memory Safety Check: Approx limit for OfflineAudioContext (varies by browser, but >1hr is risky)
+    if (totalDuration > 3600) {
+        throw new Error("총 재생 시간이 너무 깁니다. 1시간 이내로 트랙을 구성해주세요.");
+    }
 
-    // Use OfflineAudioContext for mixing
-    // Note: Creating a very large OfflineAudioContext can fail on some devices (OOM).
-    // If this fails, we might need to implement segmented processing, but for now we try/catch.
     let offlineCtx: OfflineAudioContext;
     try {
         offlineCtx = new OfflineAudioContext(2, frameCount, sampleRate);
     } catch (e) {
-        throw new Error("오디오 길이가 너무 길어 메모리를 할당할 수 없습니다. 트랙을 나누어 시도해주세요.");
+        throw new Error("메모리 부족으로 오디오 처리를 시작할 수 없습니다. 트랙 수를 줄여 다시 시도해주세요.");
     }
     
     let offset = 0;
@@ -143,7 +150,8 @@ class RenderService {
     const height = resolution === '1080p' ? 1080 : 720;
     const fps = 30;
     
-    const bitrate = resolution === '1080p' ? 8_000_000 : 4_000_000; 
+    // Reduce bitrate slightly to ensure stability on standard web deployments
+    const bitrate = resolution === '1080p' ? 6_000_000 : 3_000_000;
 
     let muxerTarget: any;
     if (writableStream) {
@@ -156,7 +164,10 @@ class RenderService {
         target: muxerTarget,
         video: { codec: 'avc', width, height },
         audio: { codec: 'aac', sampleRate, numberOfChannels: 2 },
-        fastStart: writableStream ? false : 'in-memory' 
+        // IMPORTANT: fastStart: false significantly reduces memory usage
+        // It writes the MOOV atom at the end, making the file streamable only after full download,
+        // but it prevents the browser from crashing during muxing.
+        fastStart: false 
     });
 
     const videoEncoder = new VideoEncoder({
@@ -167,28 +178,25 @@ class RenderService {
         }
     }) as VideoEncoderWithState;
 
-    // Codec Selection Logic
-    const mainCodec = `avc1.4d002a`; 
-
-    const encoderConfig: any = {
-        codec: mainCodec,
+    // Codec Selection: Prefer Baseline for maximum compatibility if High profile isn't strictly needed
+    // 'avc1.42001f' is Baseline Profile Level 3.1, supported by almost all devices
+    const codecConfig = {
+        codec: 'avc1.42001f', 
         width, 
         height, 
         bitrate, 
         framerate: fps,
-        hardwareAcceleration: 'prefer-hardware', // Critical for speed
-        bitrateMode: 'variable', 
-        latencyMode: 'quality' 
+        hardwareAcceleration: 'no-preference' as const // Let browser decide to avoid strict hardware lockouts
     };
 
     try {
-        videoEncoder.configure(encoderConfig);
+        videoEncoder.configure(codecConfig);
     } catch (e) {
-        console.warn("Preferred config failed, falling back to baseline", e);
+        console.warn("Baseline config failed, trying generic AVC", e);
+        // Fallback to minimal config
         videoEncoder.configure({
-            codec: 'avc1.42001f', // Baseline fallback
-            width, height, bitrate, framerate: fps,
-            hardwareAcceleration: 'no-preference'
+            codec: 'avc1.42001e', // Baseline 3.0
+            width, height, bitrate, framerate: fps
         });
     }
 
@@ -201,7 +209,10 @@ class RenderService {
     });
 
     audioEncoder.configure({
-        codec: 'mp4a.40.2', sampleRate, numberOfChannels: 2, bitrate: 192_000
+        codec: 'mp4a.40.2', 
+        sampleRate, 
+        numberOfChannels: 2, 
+        bitrate: 128_000 
     });
 
     // 4. Setup Visualization Environment
@@ -228,9 +239,23 @@ class RenderService {
     effectRenderer.resize(width, height);
 
     // --- Load Assets (Async) ---
+    // Handle CORS issues by wrapping in try/catch and fallback
+    const loadImage = async (url: string | null): Promise<ImageBitmap | null> => {
+        if (!url) return null;
+        try {
+            // Try fetch first (works for blob URLs and CORS-enabled headers)
+            const resp = await fetch(url);
+            const blob = await resp.blob();
+            return await createImageBitmap(blob);
+        } catch (e) {
+            console.warn(`Failed to load image asset: ${url}`, e);
+            return null;
+        }
+    };
+
     const [bgBitmap, logoBitmap, stickerBitmapRaw] = await Promise.all([
-        visualizerSettings.backgroundImage ? fetch(visualizerSettings.backgroundImage).then(r => r.blob()).then(createImageBitmap).catch(() => null) : Promise.resolve(null),
-        visualizerSettings.logoImage ? fetch(visualizerSettings.logoImage).then(r => r.blob()).then(createImageBitmap).catch(() => null) : Promise.resolve(null),
+        loadImage(visualizerSettings.backgroundImage),
+        loadImage(visualizerSettings.logoImage),
         visualizerSettings.stickerImage ? fetch(visualizerSettings.stickerImage).then(r => r.blob()).catch(() => null) : Promise.resolve(null)
     ]);
 
@@ -453,9 +478,9 @@ class RenderService {
         // --- Chunked Audio Encoding ---
         onProgress(totalFrames, totalFrames, "오디오 트랙 처리 및 저장 중...");
         
-        // Split audio into small chunks (e.g. 1 second) to prevent AudioEncoder crash/drop
-        const CHUNK_DURATION_SEC = 1;
-        const chunkFrames = sampleRate * CHUNK_DURATION_SEC;
+        // Split audio into very small chunks (0.5 second) for maximum stability
+        const CHUNK_DURATION_SEC = 0.5;
+        const chunkFrames = Math.floor(sampleRate * CHUNK_DURATION_SEC);
         const totalAudioFrames = renderedBuffer.length;
 
         const leftChannel = renderedBuffer.getChannelData(0);
@@ -465,7 +490,7 @@ class RenderService {
             if (this.hasEncoderError) break;
             
             // Audio Backpressure Check
-            await this.waitForQueue(audioEncoder, 30);
+            await this.waitForQueue(audioEncoder, 20);
 
             const framesToEncode = Math.min(chunkFrames, totalAudioFrames - i);
             
@@ -490,7 +515,6 @@ class RenderService {
                 audioData.close();
             } catch(e) {
                 console.error("Audio Chunk Encoding Error:", e);
-                // Continue to try and save at least partial/video
             }
             
             // Yield to event loop to prevent freezing
@@ -511,6 +535,7 @@ class RenderService {
             muxer.finalize();
         } catch (e) {
             console.error("Muxer finalize error", e);
+            throw new Error("파일 생성 마무리 단계에서 오류가 발생했습니다.");
         }
 
         // Cleanup
