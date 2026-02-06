@@ -86,37 +86,55 @@ class RenderService {
 
     if (tracks.length === 0) throw new Error("No tracks to render");
 
-    // 1. Load Audio Buffers
-    const decodedBuffers: AudioBuffer[] = [];
-    onProgress(0, tracks.length, "오디오 리소스 로딩 중...");
-
+    // 1. Load Audio Buffers (Parallelized Batch Loading)
+    // Optimization: Process multiple tracks concurrently to speed up decoding
+    const decodedBuffers: (AudioBuffer | null)[] = new Array(tracks.length).fill(null);
     let totalDuration = 0;
     
-    // Sequential loading to prevent memory spikes with large files
-    for (let i = 0; i < tracks.length; i++) {
-        if (signal.aborted) throw new Error("Render Aborted");
-        onProgress(i, tracks.length, `오디오 디코딩 중 (${i + 1}/${tracks.length})...`);
-        
-        let fileToDecode: File | Blob | undefined = tracks[i].file;
-        if (!fileToDecode) {
-            try {
-                const blob = await storageService.getFile(tracks[i].id);
-                if (blob) fileToDecode = blob;
-            } catch (e) {
-                console.warn(`Failed to retrieve file for track ${tracks[i].id}`);
-            }
-        }
+    const BATCH_SIZE = 4; // Process 4 tracks at a time
+    let processedCount = 0;
 
-        if (fileToDecode) {
-             const buffer = await audioService.getAudioBuffer(fileToDecode, tracks[i].id);
-             if (buffer) {
-                 decodedBuffers.push(buffer);
-                 totalDuration += buffer.duration;
-             }
-        }
+    onProgress(0, tracks.length, "오디오 리소스 분석 중...");
+
+    for (let i = 0; i < tracks.length; i += BATCH_SIZE) {
+        if (signal.aborted) throw new Error("Render Aborted");
+
+        const batch = tracks.slice(i, i + BATCH_SIZE);
+        const batchPromises = batch.map(async (track, batchIndex) => {
+            const globalIndex = i + batchIndex;
+            let fileToDecode = track.file;
+            
+            if (!fileToDecode) {
+                try {
+                    const blob = await storageService.getFile(track.id);
+                    if (blob) fileToDecode = blob;
+                } catch (e) {
+                    console.warn(`Failed to retrieve file for track ${track.id}`);
+                }
+            }
+
+            if (fileToDecode) {
+                 try {
+                    const buffer = await audioService.getAudioBuffer(fileToDecode, track.id);
+                    if (buffer) {
+                        decodedBuffers[globalIndex] = buffer;
+                    }
+                 } catch(e) {
+                     console.error(`Error decoding track ${track.name}`, e);
+                 }
+            }
+        });
+
+        await Promise.all(batchPromises);
+        processedCount += batch.length;
+        onProgress(Math.min(processedCount, tracks.length), tracks.length, `오디오 고속 디코딩 중 (${Math.min(processedCount, tracks.length)}/${tracks.length})...`);
     }
 
-    if (decodedBuffers.length === 0 || totalDuration === 0) {
+    // Filter out failed decodes and calculate duration
+    const validBuffers = decodedBuffers.filter((b): b is AudioBuffer => b !== null);
+    totalDuration = validBuffers.reduce((acc, b) => acc + b.duration, 0);
+
+    if (validBuffers.length === 0 || totalDuration === 0) {
         throw new Error("렌더링할 유효한 오디오 데이터가 없습니다.");
     }
 
@@ -125,7 +143,7 @@ class RenderService {
     const sampleRate = 44100;
     const frameCount = Math.ceil(sampleRate * totalDuration);
     
-    // Memory Safety Check: Approx limit for OfflineAudioContext (varies by browser, but >1hr is risky)
+    // Memory Safety Check
     if (totalDuration > 3600) {
         throw new Error("총 재생 시간이 너무 깁니다. 1시간 이내로 트랙을 구성해주세요.");
     }
@@ -138,7 +156,7 @@ class RenderService {
     }
     
     let offset = 0;
-    decodedBuffers.forEach(buf => {
+    validBuffers.forEach(buf => {
         const source = offlineCtx.createBufferSource();
         source.buffer = buf;
         source.connect(offlineCtx.destination);
@@ -151,7 +169,6 @@ class RenderService {
     const height = resolution === '1080p' ? 1080 : 720;
     const fps = 30;
     
-    // Reduce bitrate slightly to ensure stability on standard web deployments
     const bitrate = resolution === '1080p' ? 6_000_000 : 3_000_000;
 
     let muxerTarget: any;
@@ -165,9 +182,6 @@ class RenderService {
         target: muxerTarget,
         video: { codec: 'avc', width, height },
         audio: { codec: 'aac', sampleRate, numberOfChannels: 2 },
-        // IMPORTANT: fastStart: false significantly reduces memory usage
-        // It writes the MOOV atom at the end, making the file streamable only after full download,
-        // but it prevents the browser from crashing during muxing.
         fastStart: false 
     });
 
@@ -179,25 +193,27 @@ class RenderService {
         }
     }) as VideoEncoderWithState;
 
-    // Codec Selection: Prefer Baseline for maximum compatibility if High profile isn't strictly needed
-    // 'avc1.42001f' is Baseline Profile Level 3.1, supported by almost all devices
+    // Optimization: Prefer Hardware Acceleration
+    // Level 4.2 (0x2a = 42) supports 1080p.
+    // Main Profile (0x4d = 77) is high quality and widely supported.
     const codecConfig = {
-        codec: 'avc1.42001f', 
+        codec: 'avc1.4d002a', // Main Profile, Level 4.2
         width, 
         height, 
         bitrate, 
         framerate: fps,
-        hardwareAcceleration: 'no-preference' as const // Let browser decide to avoid strict hardware lockouts
+        hardwareAcceleration: 'prefer-hardware' as const // Optimization: Prefer GPU
     };
 
     try {
         videoEncoder.configure(codecConfig);
     } catch (e) {
-        console.warn("Baseline config failed, trying generic AVC", e);
-        // Fallback to minimal config
+        console.warn("Hardware config failed, trying generic AVC", e);
+        // Fallback to Baseline Profile (0x42), Level 4.2 (0x2a)
         videoEncoder.configure({
-            codec: 'avc1.42001e', // Baseline 3.0
-            width, height, bitrate, framerate: fps
+            codec: 'avc1.42002a', 
+            width, height, bitrate, framerate: fps,
+            hardwareAcceleration: 'no-preference'
         });
     }
 
@@ -222,7 +238,7 @@ class RenderService {
     analyser.smoothingTimeConstant = visualizerSettings.sensitivity;
     
     offset = 0;
-    decodedBuffers.forEach(buf => {
+    validBuffers.forEach(buf => {
         const source = offlineCtx.createBufferSource();
         source.buffer = buf;
         source.connect(analyser);
@@ -240,11 +256,9 @@ class RenderService {
     effectRenderer.resize(width, height);
 
     // --- Load Assets (Async) ---
-    // Handle CORS issues by wrapping in try/catch and fallback
     const loadImage = async (url: string | null): Promise<ImageBitmap | null> => {
         if (!url) return null;
         try {
-            // Try fetch first (works for blob URLs and CORS-enabled headers)
             const resp = await fetch(url);
             const blob = await resp.blob();
             return await createImageBitmap(blob);
@@ -306,10 +320,10 @@ class RenderService {
         const processFrame = async (i: number) => {
             if (signal.aborted || this.hasEncoderError) return;
 
-            // --- Backpressure Control ---
-            await this.waitForQueue(videoEncoder, 30);
+            // Optimization: Increased Queue limit to 60 to keep GPU busy
+            await this.waitForQueue(videoEncoder, 60);
             
-            // UI Update
+            // UI Update (Throttled)
             if (i % 30 === 0) { 
                 const elapsed = (performance.now() - startTime) / 1000;
                 let speedInfo = "";
@@ -320,7 +334,6 @@ class RenderService {
                 }
                 const percent = Math.round((i/totalFrames)*100);
                 onProgress(i, totalFrames, `렌더링 중... ${percent}%${speedInfo}`);
-                // Yield to event loop
                 await new Promise(r => setTimeout(r, 0));
             }
 
@@ -334,7 +347,6 @@ class RenderService {
                 analyser.getByteFrequencyData(dataArray);
             }
 
-            // Beat Detection
             let bassEnergy = 0;
             if (visualizerMode !== VisualizerMode.WAVE && visualizerMode !== VisualizerMode.FLUID && visualizerMode !== VisualizerMode.JELLY_WAVE) {
                 bassEnergy = (dataArray[0] + dataArray[1] + dataArray[2] + dataArray[3] + dataArray[4]) / 5;
@@ -346,7 +358,6 @@ class RenderService {
             }
             const isBeat = bassEnergy > 200;
             
-            // Fixed delta time for consistent offline simulation
             const fixedDeltaTime = 1.0 / fps;
             effectRenderer.update(isBeat, bassEnergy, visualizerSettings.effectParams, fixedDeltaTime);
 
@@ -451,11 +462,10 @@ class RenderService {
                 videoEncoder.encode(frame, { keyFrame });
             } catch(e) {
                 console.error("Frame encoding failed", e);
-                // Don't set global error for single frame skip, try to continue
             }
             frame.close();
 
-            // Schedule Next
+            // Schedule Next Frame
             if (i + 1 < totalFrames) {
                 const nextTime = (i + 1) / fps;
                 offlineCtx.suspend(nextTime)
@@ -489,7 +499,6 @@ class RenderService {
         // --- Chunked Audio Encoding ---
         onProgress(totalFrames, totalFrames, "오디오 트랙 처리 및 저장 중...");
         
-        // Split audio into very small chunks (0.5 second) for maximum stability
         const CHUNK_DURATION_SEC = 0.5;
         const chunkFrames = Math.floor(sampleRate * CHUNK_DURATION_SEC);
         const totalAudioFrames = renderedBuffer.length;
@@ -500,12 +509,10 @@ class RenderService {
         for (let i = 0; i < totalAudioFrames; i += chunkFrames) {
             if (this.hasEncoderError) break;
             
-            // Audio Backpressure Check
             await this.waitForQueue(audioEncoder, 20);
 
             const framesToEncode = Math.min(chunkFrames, totalAudioFrames - i);
             
-            // Interleave on the fly to save memory
             const chunkBuffer = new Float32Array(framesToEncode * 2);
             for (let j = 0; j < framesToEncode; j++) {
                 chunkBuffer[j * 2] = leftChannel[i + j];
@@ -518,7 +525,7 @@ class RenderService {
                     sampleRate: sampleRate,
                     numberOfFrames: framesToEncode,
                     numberOfChannels: 2,
-                    timestamp: (i / sampleRate) * 1_000_000, // microseconds
+                    timestamp: (i / sampleRate) * 1_000_000,
                     data: chunkBuffer
                 });
                 
@@ -528,7 +535,6 @@ class RenderService {
                 console.error("Audio Chunk Encoding Error:", e);
             }
             
-            // Yield to event loop to prevent freezing
             if (i % (chunkFrames * 5) === 0) {
                  await new Promise(r => setTimeout(r, 0));
             }
@@ -541,7 +547,6 @@ class RenderService {
         }
         audioEncoder.close();
 
-        // Finalize Muxer - MUST be called
         try {
             muxer.finalize();
         } catch (e) {
@@ -549,20 +554,18 @@ class RenderService {
             throw new Error("파일 생성 마무리 단계에서 오류가 발생했습니다.");
         }
 
-        // Cleanup
         if(bgBitmap) bgBitmap.close();
         if(logoBitmap) logoBitmap.close();
         if(stickerBitmap) stickerBitmap.close();
         gifController.dispose();
 
-        // Return Result
         if (writableStream) {
             return null;
         }
 
         const { buffer } = (muxer.target as Muxer.ArrayBufferTarget);
         if (buffer.byteLength === 0) {
-            throw new Error("생성된 파일 크기가 0바이트입니다. 브라우저가 인코딩을 지원하지 않거나 메모리가 부족할 수 있습니다.");
+            throw new Error("생성된 파일 크기가 0바이트입니다.");
         }
 
         const blob = new Blob([buffer], { type: 'video/mp4' });
@@ -571,7 +574,6 @@ class RenderService {
 
     } catch (e) {
         console.error("Rendering Process Failed", e);
-        // Ensure cleanup if fatal error occurs
         try { videoEncoder.close(); } catch {}
         try { audioEncoder.close(); } catch {}
         throw e;

@@ -63,6 +63,7 @@ const App: React.FC = () => {
       setTracks,
       selectedTrackIds,
       handleFilesAdded, handleReorderTrack,
+      handleDuplicateTrack,
       handleDeleteTrack, handleClearLibrary,
       toggleTrackSelection, toggleSelectAll
   } = useLibrary();
@@ -111,6 +112,68 @@ const App: React.FC = () => {
 
   // Overwrite the simple boolean passed to hook with the real one for the UI blocking logic
   const isExporting = exporter.isExporting;
+
+  // Timeline Generator
+  const handleCopyTimeline = async () => {
+      if (tracksToExport.length === 0) {
+          alert("타임라인을 생성할 트랙이 없습니다.");
+          return;
+      }
+
+      let currentSeconds = 0;
+      let timelineText = "";
+
+      for (const track of tracksToExport) {
+          // Calculate Duration if missing (backward compatibility)
+          let duration = track.duration;
+          
+          if (!duration || duration <= 0) {
+             try {
+                let file = track.file;
+                if (!file) {
+                    const blob = await storageService.getFile(track.id);
+                    if (blob) file = blob as File;
+                }
+                if (file) {
+                    const tempAudio = new Audio(URL.createObjectURL(file));
+                    await new Promise(r => {
+                        tempAudio.onloadedmetadata = () => {
+                            duration = tempAudio.duration;
+                            r(null);
+                        };
+                        tempAudio.onerror = () => { duration = 0; r(null); };
+                    });
+                }
+             } catch(e) {
+                 duration = 0;
+             }
+          }
+
+          // Format: 00:00 - Title
+          const hrs = Math.floor(currentSeconds / 3600);
+          const mins = Math.floor((currentSeconds % 3600) / 60);
+          const secs = Math.floor(currentSeconds % 60);
+          
+          let timestamp = "";
+          if (hrs > 0) {
+              timestamp = `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          } else {
+              timestamp = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          }
+
+          timelineText += `${timestamp} - ${track.name}\n`;
+          
+          currentSeconds += (duration || 0);
+      }
+
+      try {
+          await navigator.clipboard.writeText(timelineText);
+          alert("타임라인이 클립보드에 복사되었습니다!");
+      } catch (err) {
+          console.error("Failed to copy", err);
+          alert("클립보드 복사에 실패했습니다.");
+      }
+  };
 
   return (
     <div className="min-h-screen bg-app-bg text-app-text font-sans selection:bg-app-accent selection:text-white flex flex-col h-screen overflow-hidden">
@@ -263,10 +326,12 @@ const App: React.FC = () => {
                   onTrackSelect={audioPlayer.handleTrackSelect}
                   onFilesAdded={handleFilesAdded}
                   onReorderTrack={handleReorderTrack}
+                  onDuplicateTrack={handleDuplicateTrack}
                   onDeleteTrack={setTrackToDelete}
                   onClearLibrary={() => setShowClearLibraryModal(true)}
                   onToggleSelection={toggleTrackSelection}
                   onToggleSelectAll={toggleSelectAll}
+                  onCopyTimeline={handleCopyTimeline}
                 />
             </div>
         </BentoBox>

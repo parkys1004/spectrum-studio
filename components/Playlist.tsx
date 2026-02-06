@@ -8,10 +8,12 @@ interface PlaylistProps {
   onTrackSelect: (track: Track) => void;
   onFilesAdded: (files: FileList) => void;
   onReorderTrack: (sourceId: string, targetId: string) => void;
+  onDuplicateTrack: (trackId: string) => void;
   onDeleteTrack: (trackId: string) => void;
   onClearLibrary: () => void;
   onToggleSelection: (trackId: string) => void;
   onToggleSelectAll: () => void;
+  onCopyTimeline: () => void;
 }
 
 const Playlist: React.FC<PlaylistProps> = ({ 
@@ -21,10 +23,12 @@ const Playlist: React.FC<PlaylistProps> = ({
     onTrackSelect, 
     onFilesAdded,
     onReorderTrack,
+    onDuplicateTrack,
     onDeleteTrack,
     onClearLibrary,
     onToggleSelection,
-    onToggleSelectAll
+    onToggleSelectAll,
+    onCopyTimeline
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,24 +75,35 @@ const Playlist: React.FC<PlaylistProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-app-bg">
-      {/* Toolbar */}
-      <div className="p-4 pb-2 flex space-x-3">
+      {/* Primary Action Button: Import */}
+      <div className="p-4 pb-0">
+          <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full py-4 rounded-xl bg-app-accent text-white font-bold text-lg shadow-lg shadow-violet-500/30 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 group hover:bg-violet-600"
+          >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>파일 가져오기</span>
+          </button>
+      </div>
+
+      {/* Secondary Toolbar */}
+      <div className="px-4 py-3 flex space-x-2">
         <IconButton 
             onClick={onToggleSelectAll}
             label={selectedTrackIds.size === tracks.length && tracks.length > 0 ? "전체 해제" : "전체 선택"}
             active={selectedTrackIds.size === tracks.length && tracks.length > 0}
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>}
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>}
         />
         <IconButton 
-            onClick={() => fileInputRef.current?.click()}
-            label="파일 가져오기"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>}
+            onClick={onCopyTimeline}
+            label="타임라인 복사"
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2" ry="2"/><path d="M12 12v6"/><path d="M12 18l3-3"/><path d="M12 18l-3-3"/></svg>}
         />
         <IconButton 
             onClick={onClearLibrary}
             label="전체 초기화"
             variant="danger"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>}
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>}
         />
         <input 
           type="file" 
@@ -154,7 +169,14 @@ const Playlist: React.FC<PlaylistProps> = ({
                        <div className="w-2.5 h-2.5 rounded-full mr-3 shrink-0 bg-app-accent shadow-[0_0_8px_rgba(139,92,246,0.6)] animate-pulse"></div>
                    )}
                    
-                   <span className="text-sm font-medium tracking-wide truncate flex-1">{track.name}</span>
+                   <div className="flex-1 min-w-0 flex flex-col">
+                        <span className="text-sm font-medium tracking-wide truncate">{track.name}</span>
+                        {track.duration > 0 && (
+                            <span className="text-[10px] text-gray-400 font-mono mt-0.5">
+                                {Math.floor(track.duration / 60)}:{(Math.floor(track.duration) % 60).toString().padStart(2, '0')}
+                            </span>
+                        )}
+                   </div>
                    
                    {/* Audio Wave Animation */}
                    {isActive && (
@@ -165,13 +187,26 @@ const Playlist: React.FC<PlaylistProps> = ({
                        </div>
                    )}
 
+                   {/* Duplicate Button */}
+                   <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDuplicateTrack(track.id);
+                        }}
+                        className="ml-2 p-2 rounded-full text-gray-400 hover:text-blue-500 hover:shadow-neu-pressed transition-all opacity-0 group-hover:opacity-100"
+                        title="트랙 복제"
+                        aria-label="Duplicate track"
+                   >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                   </button>
+
                    {/* Delete Button */}
                    <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onDeleteTrack(track.id);
                         }}
-                        className="ml-3 p-2 rounded-full text-gray-400 hover:text-red-500 hover:shadow-neu-pressed transition-all opacity-0 group-hover:opacity-100"
+                        className="ml-1 p-2 rounded-full text-gray-400 hover:text-red-500 hover:shadow-neu-pressed transition-all opacity-0 group-hover:opacity-100"
                         title="삭제"
                         aria-label="Delete track"
                    >

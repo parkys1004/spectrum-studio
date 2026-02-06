@@ -3,6 +3,25 @@ import { Track } from '../types';
 import { storageService } from '../services/storageService';
 import { audioService } from '../services/audioService';
 
+// Helper to get duration
+const getAudioDuration = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const audio = new Audio(url);
+        
+        audio.onloadedmetadata = () => {
+            const duration = audio.duration;
+            URL.revokeObjectURL(url);
+            resolve(Number.isFinite(duration) ? duration : 0);
+        };
+
+        audio.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(0);
+        };
+    });
+};
+
 export const useLibrary = () => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(new Set());
@@ -28,17 +47,26 @@ export const useLibrary = () => {
   }, [tracks]);
 
   const handleFilesAdded = useCallback(async (files: FileList) => {
-    const newTracks: Track[] = Array.from(files).map((file) => ({
-      id: crypto.randomUUID(),
-      name: file.name.replace(/\.[^/.]+$/, ""),
-      artist: 'Unknown',
-      duration: 0,
-      url: URL.createObjectURL(file),
-      file,
-    }));
+    const fileArray = Array.from(files);
+    const newTracks: Track[] = [];
+
+    // Process sequentially to keep order
+    for (const file of fileArray) {
+        const duration = await getAudioDuration(file);
+        
+        newTracks.push({
+            id: crypto.randomUUID(),
+            name: file.name.replace(/\.[^/.]+$/, ""),
+            artist: 'Unknown',
+            duration: duration,
+            url: URL.createObjectURL(file),
+            file,
+        });
+    }
 
     setTracks((prev) => [...prev, ...newTracks]);
     
+    // Analyze Audio Mood in background
     for (const track of newTracks) {
         if (track.file) {
             storageService.saveFile(track.id, track.file);
@@ -77,6 +105,54 @@ export const useLibrary = () => {
         return newTracks;
     });
   }, []);
+
+  // Duplicate Track
+  const handleDuplicateTrack = useCallback(async (trackId: string) => {
+      const trackToDuplicate = tracks.find(t => t.id === trackId);
+      if (!trackToDuplicate) return;
+
+      try {
+          // 1. Get the file blob
+          let file = trackToDuplicate.file;
+          if (!file) {
+              const blob = await storageService.getFile(trackId);
+              if (blob) file = blob as File; 
+          }
+          
+          if (!file) {
+              alert("원본 파일을 찾을 수 없어 복사할 수 없습니다.");
+              return;
+          }
+
+          // 2. Create new ID and Track Object
+          const newId = crypto.randomUUID();
+          const newTrack: Track = {
+              ...trackToDuplicate,
+              id: newId,
+              name: `${trackToDuplicate.name} (Copy)`,
+              file: file,
+              duration: trackToDuplicate.duration, // Keep duration
+              url: URL.createObjectURL(file) 
+          };
+
+          // 3. Save to Storage (IDB)
+          await storageService.saveFile(newId, file);
+
+          // 4. Update State (Insert after original)
+          setTracks(prev => {
+              const index = prev.findIndex(t => t.id === trackId);
+              if (index === -1) return [...prev, newTrack];
+              
+              const newTracks = [...prev];
+              newTracks.splice(index + 1, 0, newTrack);
+              return newTracks;
+          });
+
+      } catch (e) {
+          console.error("Duplicate failed", e);
+          alert("트랙 복사 중 오류가 발생했습니다.");
+      }
+  }, [tracks]);
 
   const handleDeleteTrack = useCallback(async (trackId: string) => {
       try {
@@ -149,6 +225,7 @@ export const useLibrary = () => {
     selectedTrackIds,
     handleFilesAdded,
     handleReorderTrack,
+    handleDuplicateTrack,
     handleDeleteTrack,
     handleClearLibrary,
     toggleTrackSelection,
