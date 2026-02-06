@@ -59,10 +59,12 @@ const DEFAULT_VISUALIZER_SETTINGS: VisualizerSettings = {
 const App: React.FC = () => {
   // 1. Library & Data State
   const { 
-      folders, tracks, currentFolderId, 
-      setCurrentFolderId, setTracks,
-      handleCreateFolder, handleFilesAdded, handleTrackMove, handleReorderTrack,
-      handleDeleteTrack, handleClearLibrary
+      tracks, 
+      setTracks,
+      selectedTrackIds,
+      handleFilesAdded, handleReorderTrack,
+      handleDeleteTrack, handleClearLibrary,
+      toggleTrackSelection, toggleSelectAll
   } = useLibrary();
 
   // 2. Visualizer Settings State (Central Source of Truth)
@@ -93,8 +95,13 @@ const App: React.FC = () => {
       false 
   );
 
+  // Filter tracks for export: if selection exists, use selection. Else use all.
+  const tracksToExport = selectedTrackIds.size > 0 
+      ? tracks.filter(t => selectedTrackIds.has(t.id))
+      : tracks;
+
   const exporter = useExporter(
-      tracks, 
+      tracksToExport, 
       audioPlayer.currentTrack, 
       audioPlayer.audioRef, 
       audioPlayer.setIsPlaying, 
@@ -234,7 +241,7 @@ const App: React.FC = () => {
             </div>
             <h3 className="text-xl font-bold text-app-text mb-3">모든 미디어를 삭제하시겠습니까?</h3>
             <p className="text-app-textMuted leading-relaxed text-sm">
-                등록된 모든 폴더와 음악 파일이 라이브러리에서 제거됩니다.<br/>
+                등록된 모든 음악 파일이 라이브러리에서 제거됩니다.<br/>
                 저장된 파일 데이터도 함께 삭제되며, <span className="text-red-500 font-bold">이 작업은 되돌릴 수 없습니다.</span>
             </p>
         </div>
@@ -251,17 +258,15 @@ const App: React.FC = () => {
             <div className={`h-full ${isExporting ? "opacity-50 pointer-events-none" : ""}`}>
                 <Playlist 
                   tracks={tracks}
-                  folders={folders}
-                  currentFolderId={currentFolderId}
                   currentTrackId={audioPlayer.currentTrack?.id || null}
+                  selectedTrackIds={selectedTrackIds}
                   onTrackSelect={audioPlayer.handleTrackSelect}
                   onFilesAdded={handleFilesAdded}
-                  onCreateFolder={handleCreateFolder}
-                  onNavigate={setCurrentFolderId}
-                  onMoveTrack={handleTrackMove}
                   onReorderTrack={handleReorderTrack}
                   onDeleteTrack={setTrackToDelete}
                   onClearLibrary={() => setShowClearLibraryModal(true)}
+                  onToggleSelection={toggleTrackSelection}
+                  onToggleSelectAll={toggleSelectAll}
                 />
             </div>
         </BentoBox>

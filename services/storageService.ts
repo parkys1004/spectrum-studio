@@ -1,4 +1,4 @@
-import { Track, Folder, VisualizerSettings } from '../types';
+import { Track, VisualizerSettings } from '../types';
 
 const DB_NAME = 'SpectrumStudioDB';
 const DB_VERSION = 1;
@@ -37,7 +37,7 @@ class StorageService {
 
   // --- Metadata (LocalStorage) ---
 
-  saveLibrary(folders: Folder[], tracks: Track[]) {
+  saveLibrary(tracks: Track[]) {
     // We do not store the ephemeral URL or the File object in LocalStorage
     // We only store serializable metadata
     const serializedTracks = tracks.map(t => ({
@@ -45,20 +45,18 @@ class StorageService {
       name: t.name,
       artist: t.artist,
       duration: t.duration,
-      folderId: t.folderId,
       mood: t.mood,
       moodColor: t.moodColor
     }));
 
     const data = {
-      folders,
       tracks: serializedTracks
     };
 
     localStorage.setItem(METADATA_KEY, JSON.stringify(data));
   }
 
-  loadLibrary(): { folders: Folder[], tracks: Track[] } | null {
+  loadLibrary(): { tracks: Track[] } | null {
     const json = localStorage.getItem(METADATA_KEY);
     if (!json) return null;
     try {
@@ -69,7 +67,7 @@ class StorageService {
         url: '', // Needs to be regenerated from Blob
         file: undefined
       }));
-      return { folders: data.folders, tracks };
+      return { tracks };
     } catch (e) {
       console.error('Failed to parse library', e);
       return null;

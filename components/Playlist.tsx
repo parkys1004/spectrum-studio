@@ -1,42 +1,32 @@
 import React, { useRef, useState } from 'react';
-import { Track, Folder } from '../types';
+import { Track } from '../types';
 
 interface PlaylistProps {
   tracks: Track[];
-  folders: Folder[];
-  currentFolderId: string | null;
   currentTrackId: string | null;
+  selectedTrackIds: Set<string>;
   onTrackSelect: (track: Track) => void;
   onFilesAdded: (files: FileList) => void;
-  onCreateFolder: () => void;
-  onNavigate: (folderId: string | null) => void;
-  onMoveTrack: (trackId: string, folderId: string | null) => void;
   onReorderTrack: (sourceId: string, targetId: string) => void;
   onDeleteTrack: (trackId: string) => void;
   onClearLibrary: () => void;
+  onToggleSelection: (trackId: string) => void;
+  onToggleSelectAll: () => void;
 }
 
 const Playlist: React.FC<PlaylistProps> = ({ 
     tracks, 
-    folders, 
-    currentFolderId, 
     currentTrackId, 
+    selectedTrackIds,
     onTrackSelect, 
     onFilesAdded,
-    onCreateFolder,
-    onNavigate,
-    onMoveTrack,
     onReorderTrack,
     onDeleteTrack,
-    onClearLibrary
+    onClearLibrary,
+    onToggleSelection,
+    onToggleSelectAll
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Filter items for current view
-  const currentFolders = folders.filter(f => f.parentId === currentFolderId);
-  const currentTracks = tracks.filter(t => t.folderId === currentFolderId);
-
-  const currentFolder = folders.find(f => f.id === currentFolderId);
 
   // Drag and Drop State
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
@@ -45,16 +35,6 @@ const Playlist: React.FC<PlaylistProps> = ({
       e.dataTransfer.setData('trackId', trackId);
       setDraggedTrackId(trackId);
       e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDropOnFolder = (e: React.DragEvent, folderId: string | null) => {
-      e.preventDefault();
-      e.stopPropagation(); 
-      const trackId = e.dataTransfer.getData('trackId');
-      if (trackId) {
-          onMoveTrack(trackId, folderId);
-      }
-      setDraggedTrackId(null);
   };
 
   const handleDropOnTrack = (e: React.DragEvent, targetId: string) => {
@@ -73,13 +53,15 @@ const Playlist: React.FC<PlaylistProps> = ({
       e.dataTransfer.dropEffect = "move";
   };
 
-  const IconButton = ({ onClick, icon, label, variant = 'default' }: { onClick: () => void, icon: React.ReactNode, label: string, variant?: 'default' | 'danger' }) => (
+  const IconButton = ({ onClick, icon, label, variant = 'default', active = false }: { onClick: () => void, icon: React.ReactNode, label: string, variant?: 'default' | 'danger', active?: boolean }) => (
       <button 
         onClick={onClick}
         className={`flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl shadow-neu-btn active:shadow-neu-pressed transition-all duration-200 group ${
             variant === 'danger' 
             ? 'bg-app-bg text-red-400 hover:text-red-500 hover:bg-red-50' 
-            : 'bg-app-bg text-app-text hover:text-app-accent'
+            : active 
+                ? 'bg-app-bg text-app-accent shadow-neu-pressed'
+                : 'bg-app-bg text-app-text hover:text-app-accent'
         }`}
         title={label}
       >
@@ -92,9 +74,10 @@ const Playlist: React.FC<PlaylistProps> = ({
       {/* Toolbar */}
       <div className="p-4 pb-2 flex space-x-3">
         <IconButton 
-            onClick={onCreateFolder}
-            label="새 폴더"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>}
+            onClick={onToggleSelectAll}
+            label={selectedTrackIds.size === tracks.length && tracks.length > 0 ? "전체 해제" : "전체 선택"}
+            active={selectedTrackIds.size === tracks.length && tracks.length > 0}
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>}
         />
         <IconButton 
             onClick={() => fileInputRef.current?.click()}
@@ -117,60 +100,12 @@ const Playlist: React.FC<PlaylistProps> = ({
         />
       </div>
 
-      {/* Breadcrumbs */}
-      <div className="px-5 py-3 text-xs flex items-center space-x-2 text-app-textMuted overflow-hidden whitespace-nowrap">
-        <span 
-            className={`cursor-pointer transition-all px-2 py-1 rounded-lg ${!currentFolderId ? 'bg-app-bg shadow-neu-pressed text-app-accent font-bold' : 'hover:text-app-text'}`}
-            onClick={() => onNavigate(null)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDropOnFolder(e, null)}
-        >
-            ROOT
-        </span>
-        {currentFolder && (
-            <>
-                <span className="opacity-30">/</span>
-                <span className="font-bold truncate bg-app-bg px-2 py-1 rounded-lg shadow-neu-pressed text-app-text">
-                    {currentFolder.name}
-                </span>
-            </>
-        )}
-      </div>
-
       {/* File List */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-          {/* Back Button */}
-          {currentFolderId && (
-              <div 
-                  className="group flex items-center px-4 py-3 rounded-xl bg-app-bg text-app-textMuted hover:text-app-text cursor-pointer transition-all shadow-neu-flat hover:translate-y-px active:shadow-neu-pressed"
-                  onClick={() => onNavigate(currentFolder?.parentId || null)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDropOnFolder(e, currentFolder?.parentId || null)}
-              >
-                  <svg className="w-5 h-5 mr-3 opacity-50" viewBox="0 0 24 24" fill="currentColor"><path d="M11.67 3.87L9.9 2.1 0 12l9.9 9.9 1.77-1.77L3.54 12z"/></svg>
-                  <span className="text-sm font-bold tracking-wide">.. (상위)</span>
-              </div>
-          )}
-
-          {/* Folders */}
-          {currentFolders.map(folder => (
-              <div 
-                  key={folder.id}
-                  onDoubleClick={() => onNavigate(folder.id)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDropOnFolder(e, folder.id)}
-                  className="group flex items-center px-4 py-3 rounded-xl bg-app-bg text-app-text cursor-pointer transition-all shadow-neu-flat hover:shadow-neu-pressed"
-              >
-                  <div className="p-1.5 rounded-full bg-app-bg shadow-neu-thin mr-3 text-yellow-500">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
-                  </div>
-                  <span className="text-sm font-bold tracking-wide flex-1">{folder.name}</span>
-              </div>
-          ))}
-
           {/* Tracks */}
-          {currentTracks.map((track) => {
+          {tracks.map((track) => {
               const isActive = track.id === currentTrackId;
+              const isSelected = selectedTrackIds.has(track.id);
               const isDragging = draggedTrackId === track.id;
 
               return (
@@ -199,12 +134,25 @@ const Playlist: React.FC<PlaylistProps> = ({
                        </svg>
                    </div>
 
-                   {/* Status Indicator */}
-                   <div className={`w-2.5 h-2.5 rounded-full mr-3 shrink-0 transition-all duration-300 ${
-                       isActive 
-                       ? 'bg-app-accent shadow-[0_0_8px_rgba(139,92,246,0.6)]' 
-                       : 'bg-gray-300 shadow-neu-thin'
-                   }`}></div>
+                    {/* Selection Checkbox */}
+                   <div 
+                        className={`mr-3 transition-colors ${isSelected ? 'text-app-accent' : 'text-gray-300 hover:text-gray-400'}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleSelection(track.id);
+                        }}
+                   >
+                       {isSelected ? (
+                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                       ) : (
+                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+                       )}
+                   </div>
+
+                   {/* Status Indicator (Only if active) */}
+                   {isActive && (
+                       <div className="w-2.5 h-2.5 rounded-full mr-3 shrink-0 bg-app-accent shadow-[0_0_8px_rgba(139,92,246,0.6)] animate-pulse"></div>
+                   )}
                    
                    <span className="text-sm font-medium tracking-wide truncate flex-1">{track.name}</span>
                    
@@ -233,12 +181,12 @@ const Playlist: React.FC<PlaylistProps> = ({
               );
           })}
 
-          {currentFolders.length === 0 && currentTracks.length === 0 && (
+          {tracks.length === 0 && (
               <div className="flex flex-col items-center justify-center py-10 opacity-40 text-center">
                   <div className="p-4 rounded-full bg-app-bg shadow-neu-flat mb-3">
                      <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
                   </div>
-                  <p className="text-xs uppercase tracking-widest text-app-textMuted">비어 있음</p>
+                  <p className="text-xs uppercase tracking-widest text-app-textMuted">트랙 없음</p>
               </div>
           )}
       </div>
@@ -258,8 +206,8 @@ const Playlist: React.FC<PlaylistProps> = ({
       
       {/* Footer Status */}
       <div className="px-5 py-3 text-[11px] text-app-textMuted flex justify-between tracking-wider font-mono">
-        <span>ITEMS: {currentFolders.length + currentTracks.length}</span>
-        <span>READY</span>
+        <span>TRACKS: {tracks.length}</span>
+        <span>SELECTED: {selectedTrackIds.size}</span>
       </div>
     </div>
   );

@@ -87,6 +87,31 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                 {/* Fixed grid to 3 columns */}
                 <div className="grid grid-cols-3 gap-4">
                     <SpectrumButton 
+                        mode={VisualizerMode.FLOWER_PETALS} 
+                        label="FLOWER" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2C7 2 2 7 2 12s5 10 10 10 10-5 10-10S17 2 12 2z" opacity="0.2"/><path d="M12 8c0-3-2.5-5-5-5s-3 3-3 5 2 4 5 4" /><path d="M12 8c0-3 2.5-5 5-5s3 3 3 5-2 4-5 4" /><path d="M12 12c-3 0-5 2.5-5 5s3 3 5 3" /><path d="M12 12c3 0 5 2.5 5 5s-3 3-5 3" /><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>}
+                    />
+                    <SpectrumButton 
+                        mode={VisualizerMode.PULSE_CIRCLES} 
+                        label="PULSE" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8" opacity="0.5"/><circle cx="12" cy="12" r="11" opacity="0.25"/></svg>}
+                    />
+                    <SpectrumButton 
+                        mode={VisualizerMode.JELLY_WAVE} 
+                        label="JELLY WAVE" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12c2 4 4 4 6 0s4-4 6 0 4 4 6 0" strokeLinecap="round"/><path d="M2 16c2 4 4 4 6 0s4-4 6 0 4 4 6 0" strokeLinecap="round" opacity="0.5"/></svg>}
+                    />
+                    <SpectrumButton 
+                        mode={VisualizerMode.FLUID} 
+                        label="FLUID" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c4.97 0 9-4.03 9-9c0-4.97-9-13-9-13S3 8.03 3 13c0 4.97 4.03 9 9 9z" opacity="0.3"/><path d="M12 22c4.97 0 9-4.03 9-9c0-3-4-8-7-10.5C12 4.8 12 22 12 22z" fill="white" fillOpacity="0.5"/></svg>}
+                    />
+                    <SpectrumButton 
+                        mode={VisualizerMode.PARTICLES} 
+                        label="PARTICLES" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="18" r="1.5"/><circle cx="10" cy="12" r="2.5"/><circle cx="18" cy="8" r="3.5"/><circle cx="20" cy="18" r="1.5"/><circle cx="8" cy="6" r="1"/><circle cx="14" cy="20" r="1"/><circle cx="16" cy="4" r="1.5"/></svg>}
+                    />
+                    <SpectrumButton 
                         mode={VisualizerMode.DOT_WAVE} 
                         label="DOT WAVE" 
                         icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="10" cy="8" r="1.5"/><circle cx="10" cy="16" r="1.5"/><circle cx="14" cy="4" r="1.5"/><circle cx="14" cy="20" r="1.5"/><circle cx="18" cy="8" r="1.5"/><circle cx="18" cy="16" r="1.5"/><circle cx="22" cy="12" r="1.5"/></svg>}
@@ -104,7 +129,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                      <SpectrumButton 
                         mode={VisualizerMode.AURORA} 
                         label="AURORA" 
-                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-4 6-4 6 4 8 4 8-4 8-4 6 4 6 4" strokeLinecap="round"/><path d="M2 15s3-4 6-4 6 4 8 4 8-4 8-4 6 4 6 4" strokeLinecap="round" opacity="0.5"/></svg>}
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-4 6-4 6 4 8 4 8-4 8-4 6 4 6 4" strokeLinecap="round"/><path d="M2 15s3-4 6-4 6 4 8 4 8-4 6 4 6 4" strokeLinecap="round" opacity="0.5"/></svg>}
                     />
                     <SpectrumButton 
                         mode={VisualizerMode.BARS} 
@@ -120,11 +145,6 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                         mode={VisualizerMode.CIRCULAR} 
                         label="CIRCLE" 
                         icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="7"/><path d="M12 5v2M12 17v2M5 12h2M17 12h2"/></svg>}
-                    />
-                     <SpectrumButton 
-                        mode={VisualizerMode.FILLED} 
-                        label="FILLED" 
-                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2 19h20v2H2z"/><path d="M2 12s3-5 6-5 6 5 8 5 8-5 8-5v12H2z" opacity="0.7"/></svg>}
                     />
                      <SpectrumButton 
                         mode={VisualizerMode.DUAL_BARS} 

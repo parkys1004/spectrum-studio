@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Folder, Track } from '../types';
+import { Track } from '../types';
 import { storageService } from '../services/storageService';
 import { audioService } from '../services/audioService';
 
 export const useLibrary = () => {
-  const [folders, setFolders] = useState<Folder[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(new Set());
   
   // Ref to track initialization status to prevent overwriting localStorage on mount
   const isInitialized = useRef(false);
@@ -15,7 +14,6 @@ export const useLibrary = () => {
   useEffect(() => {
     const library = storageService.loadLibrary();
     if (library) {
-      setFolders(library.folders);
       setTracks(library.tracks);
     }
     isInitialized.current = true;
@@ -24,24 +22,10 @@ export const useLibrary = () => {
   // Save Library on Changes
   useEffect(() => {
     // Only save if initialized. This allows saving empty arrays if the user deleted everything.
-    // Previously, checking length > 0 prevented saving the "empty" state.
     if (isInitialized.current) {
-        storageService.saveLibrary(folders, tracks);
+        storageService.saveLibrary(tracks);
     }
-  }, [folders, tracks]);
-
-  const handleCreateFolder = useCallback(() => {
-    const name = prompt("폴더 이름을 입력하세요:", "새 모음");
-    if (!name) return;
-    
-    const newFolder: Folder = {
-      id: crypto.randomUUID(),
-      name,
-      parentId: currentFolderId,
-      createdAt: Date.now()
-    };
-    setFolders(prev => [...prev, newFolder]);
-  }, [currentFolderId]);
+  }, [tracks]);
 
   const handleFilesAdded = useCallback(async (files: FileList) => {
     const newTracks: Track[] = Array.from(files).map((file) => ({
@@ -51,7 +35,6 @@ export const useLibrary = () => {
       duration: 0,
       url: URL.createObjectURL(file),
       file,
-      folderId: currentFolderId
     }));
 
     setTracks((prev) => [...prev, ...newTracks]);
@@ -69,13 +52,9 @@ export const useLibrary = () => {
             });
         }
     }
-  }, [currentFolderId]);
-
-  const handleTrackMove = useCallback((trackId: string, targetFolderId: string | null) => {
-    setTracks(prev => prev.map(t => t.id === trackId ? { ...t, folderId: targetFolderId } : t));
   }, []);
 
-  // New: Reorder Tracks
+  // Reorder Tracks
   const handleReorderTrack = useCallback((sourceTrackId: string, targetTrackId: string) => {
     setTracks(prev => {
         const sourceIndex = prev.findIndex(t => t.id === sourceTrackId);
@@ -100,16 +79,21 @@ export const useLibrary = () => {
   }, []);
 
   const handleDeleteTrack = useCallback(async (trackId: string) => {
-      // Confimation is handled by the UI (Modal) now
-      
       try {
           // 1. Remove from Storage
           await storageService.deleteFile(trackId);
           
           // 2. Remove from State
           setTracks(prev => prev.filter(t => t.id !== trackId));
+
+          // 3. Remove from Selection
+          setSelectedTrackIds(prev => {
+              const next = new Set(prev);
+              next.delete(trackId);
+              return next;
+          });
           
-          // 3. Clean up cache in audioService if it exists
+          // 4. Clean up cache in audioService if it exists
           audioService.clearCache(trackId);
       } catch (e) {
           console.error("Failed to delete track:", e);
@@ -123,9 +107,8 @@ export const useLibrary = () => {
           await storageService.clearAllFiles();
           
           // 2. Clear State
-          setFolders([]);
           setTracks([]);
-          setCurrentFolderId(null);
+          setSelectedTrackIds(new Set());
           
           // 3. Clear Cache
           audioService.clearCache();
@@ -136,17 +119,39 @@ export const useLibrary = () => {
       }
   }, []);
 
+  const toggleTrackSelection = useCallback((trackId: string) => {
+      setSelectedTrackIds(prev => {
+          const next = new Set(prev);
+          if (next.has(trackId)) {
+              next.delete(trackId);
+          } else {
+              next.add(trackId);
+          }
+          return next;
+      });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+      if (tracks.length === 0) return;
+      setSelectedTrackIds(prev => {
+          // If currently all selected, deselect all. Otherwise, select all.
+          if (prev.size === tracks.length) {
+              return new Set();
+          } else {
+              return new Set(tracks.map(t => t.id));
+          }
+      });
+  }, [tracks]);
+
   return {
-    folders,
     tracks,
-    currentFolderId,
-    setCurrentFolderId,
     setTracks,
-    handleCreateFolder,
+    selectedTrackIds,
     handleFilesAdded,
-    handleTrackMove,
     handleReorderTrack,
     handleDeleteTrack,
-    handleClearLibrary
+    handleClearLibrary,
+    toggleTrackSelection,
+    toggleSelectAll
   };
 };

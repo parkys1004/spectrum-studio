@@ -2,8 +2,9 @@ import { Track, VisualizerSettings, VisualizerMode } from '../types';
 import * as Muxer from 'mp4-muxer';
 import { 
     drawBars, drawLine, drawCircle, 
-    drawFilledWave, drawDualBars, drawRipple, 
-    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars
+    drawDualBars, drawRipple, 
+    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars,
+    drawFluid, drawParticleSpectrum, drawJellyWave, drawPulseCircles, drawFlowerPetals
 } from '../utils/drawUtils';
 import { EffectRenderer } from '../utils/effectRenderer';
 import { audioService } from './audioService';
@@ -276,24 +277,28 @@ class RenderService {
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     let startTime = 0;
 
-    const renderSpectrum = (context: OffscreenCanvasRenderingContext2D, w: number, h: number) => {
+    const renderSpectrum = (context: OffscreenCanvasRenderingContext2D, w: number, h: number, timestamp: number) => {
          if (!visualizerMode) return;
          switch (visualizerMode) {
-            case VisualizerMode.BARS: drawBars(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.WAVE: drawLine(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.CIRCULAR: drawCircle(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.FILLED: drawFilledWave(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.DUAL_BARS: drawDualBars(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.RIPPLE: drawRipple(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.PIXEL: drawPixel(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.EQUALIZER: drawEqualizer(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.STARBURST: drawStarburst(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.BUTTERFLY: drawButterfly(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.AURORA: drawAurora(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.SPECTRUM: drawSpectrum(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.DOT_WAVE: drawDotWave(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            case VisualizerMode.LED_BARS: drawLedBars(context, dataArray, dataArray.length, w, h, visualizerSettings); break;
-            default: drawBars(context, dataArray, dataArray.length, w, h, visualizerSettings);
+            case VisualizerMode.BARS: drawBars(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.WAVE: drawLine(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.CIRCULAR: drawCircle(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.DUAL_BARS: drawDualBars(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.RIPPLE: drawRipple(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.PIXEL: drawPixel(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.EQUALIZER: drawEqualizer(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.STARBURST: drawStarburst(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.BUTTERFLY: drawButterfly(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.AURORA: drawAurora(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.SPECTRUM: drawSpectrum(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.DOT_WAVE: drawDotWave(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.LED_BARS: drawLedBars(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.FLUID: drawFluid(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.PARTICLES: drawParticleSpectrum(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.JELLY_WAVE: drawJellyWave(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.PULSE_CIRCLES: drawPulseCircles(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            case VisualizerMode.FLOWER_PETALS: drawFlowerPetals(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
+            default: drawBars(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp);
          }
     };
 
@@ -320,8 +325,10 @@ class RenderService {
             }
 
             // --- Analysis & Draw ---
-            const time = i / fps;
-            if (visualizerMode === VisualizerMode.WAVE || visualizerMode === VisualizerMode.FILLED) {
+            const timeSeconds = i / fps;
+            const timeMs = timeSeconds * 1000;
+
+            if (visualizerMode === VisualizerMode.WAVE || visualizerMode === VisualizerMode.FLUID || visualizerMode === VisualizerMode.JELLY_WAVE) {
                 analyser.getByteTimeDomainData(dataArray);
             } else {
                 analyser.getByteFrequencyData(dataArray);
@@ -329,7 +336,7 @@ class RenderService {
 
             // Beat Detection
             let bassEnergy = 0;
-            if (visualizerMode !== VisualizerMode.WAVE && visualizerMode !== VisualizerMode.FILLED) {
+            if (visualizerMode !== VisualizerMode.WAVE && visualizerMode !== VisualizerMode.FLUID && visualizerMode !== VisualizerMode.JELLY_WAVE) {
                 bassEnergy = (dataArray[0] + dataArray[1] + dataArray[2] + dataArray[3] + dataArray[4]) / 5;
             } else {
                 let sum = 0;
@@ -339,7 +346,9 @@ class RenderService {
             }
             const isBeat = bassEnergy > 200;
             
-            effectRenderer.update(isBeat, bassEnergy, visualizerSettings.effectParams);
+            // Fixed delta time for consistent offline simulation
+            const fixedDeltaTime = 1.0 / fps;
+            effectRenderer.update(isBeat, bassEnergy, visualizerSettings.effectParams, fixedDeltaTime);
 
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, width, height);
@@ -377,18 +386,18 @@ class RenderService {
             if (visualizerSettings.effects.mirror) {
                 ctx.save(); 
                 ctx.translate(0, -height/2); 
-                renderSpectrum(ctx, width / 2, height);
+                renderSpectrum(ctx, width / 2, height, timeMs);
                 ctx.restore();
                 
                 ctx.save(); 
                 ctx.scale(-1, 1); 
                 ctx.translate(0, -height/2); 
                 ctx.globalCompositeOperation = 'screen'; 
-                renderSpectrum(ctx, width / 2, height);
+                renderSpectrum(ctx, width / 2, height, timeMs);
                 ctx.restore();
             } else {
                 ctx.translate(-width/2, -height/2);
-                renderSpectrum(ctx, width, height);
+                renderSpectrum(ctx, width, height, timeMs);
             }
             ctx.restore();
 
@@ -405,7 +414,7 @@ class RenderService {
             }
 
             // Sticker
-            let sImg = gifController.isLoaded ? gifController.getFrame(time*1000) as ImageBitmap : stickerBitmap;
+            let sImg = gifController.isLoaded ? gifController.getFrame(timeMs) as ImageBitmap : stickerBitmap;
             if (sImg) {
                 const base = Math.min(width,height)*0.15;
                 const dw = base * visualizerSettings.stickerScale;

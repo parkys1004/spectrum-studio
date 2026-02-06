@@ -31,16 +31,14 @@ export const useExporter = (
   }, [isExporting]);
 
   const triggerExportModal = () => {
-    if (!currentTrack) {
+    if (tracks.length === 0) {
         alert("내보낼 트랙이 없습니다.");
         return;
     }
-    const contextTracks = tracks.filter(t => t.folderId === currentTrack.folderId);
-    if (contextTracks.length === 0) return;
 
     setExportStats({
         current: 0,
-        total: contextTracks.length,
+        total: tracks.length,
         phase: '준비 중...'
     });
     setExportResolution('1080p');
@@ -95,16 +93,13 @@ export const useExporter = (
   };
 
   const startPlaylistExport = async () => {
-      if (!currentTrack) return;
-
       // 1. Pause Audio & Setup
       if (audioRef.current) {
           audioRef.current.pause();
       }
       setIsPlaying(false);
 
-      const contextTracks = tracks.filter(t => t.folderId === currentTrack.folderId);
-      if (contextTracks.length === 0) {
+      if (tracks.length === 0) {
           alert("내보낼 트랙이 없습니다.");
           return;
       }
@@ -155,7 +150,7 @@ export const useExporter = (
 
       try {
           const result = await renderService.renderPlaylist(
-              contextTracks,
+              tracks,
               visualizerSettings,
               visualizerMode,
               exportResolution,

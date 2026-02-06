@@ -36,9 +36,14 @@ export class EffectRenderer {
         this.height = h;
     }
 
-    update(isBeat: boolean, bassEnergy: number, params: VisualizerSettings['effectParams']) {
+    // deltaTime in seconds (e.g. 0.016 for 60fps)
+    update(isBeat: boolean, bassEnergy: number, params: VisualizerSettings['effectParams'], deltaTime: number = 0.016) {
         const speed = params.speed || 1.0;
         const intensity = params.intensity || 1.0;
+        
+        // Normalize movement relative to 60fps
+        // If deltaTime is 0.016 (60fps), scale is 1. If 0.033 (30fps), scale is 2.
+        const dtScale = deltaTime * 60;
 
         // 1. Snow
         const maxSnow = 150 * intensity;
@@ -59,8 +64,8 @@ export class EffectRenderer {
         }
 
         this.snowParticles.forEach(p => {
-            p.x += p.vx;
-            p.y += p.vy;
+            p.x += p.vx * dtScale;
+            p.y += p.vy * dtScale;
             if (p.y > this.height) {
                 p.y = -10;
                 p.x = Math.random() * this.width;
@@ -86,8 +91,8 @@ export class EffectRenderer {
         }
 
         this.rainParticles.forEach(p => {
-            p.x += p.vx;
-            p.y += p.vy;
+            p.x += p.vx * dtScale;
+            p.y += p.vy * dtScale;
             if (p.y > this.height) {
                 p.y = -20;
                 p.x = Math.random() * this.width;
@@ -110,7 +115,7 @@ export class EffectRenderer {
             }
         }
         this.dropParticles.forEach((p, idx) => {
-            p.life++;
+            p.life += 1 * dtScale;
             // Fade in then out
             if (p.life < 20) p.alpha = (p.life / 20) * 0.6;
             else if (p.life > p.maxLife - 30) p.alpha = Math.max(0, (p.maxLife - p.life) / 30) * 0.6;
@@ -136,8 +141,8 @@ export class EffectRenderer {
         }
 
         this.floatParticles.forEach(p => {
-            p.x += p.vx;
-            p.y += p.vy;
+            p.x += p.vx * dtScale;
+            p.y += p.vy * dtScale;
             // Wrap
             if (p.x < 0) p.x = this.width;
             if (p.x > this.width) p.x = 0;
@@ -174,28 +179,28 @@ export class EffectRenderer {
         }
         for(let i = this.fireworkParticles.length - 1; i >= 0; i--) {
             const p = this.fireworkParticles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vy += 0.1 * speed; // Gravity
-            p.life -= 0.02 * speed; // Fade
+            p.x += p.vx * dtScale;
+            p.y += p.vy * dtScale;
+            p.vy += 0.1 * speed * dtScale; // Gravity
+            p.life -= 0.02 * speed * dtScale; // Fade
             if (p.life <= 0) this.fireworkParticles.splice(i, 1);
         }
 
         // 6. Starfield (Drifting)
         this.starParticles.forEach(p => {
              // Twinkle speed
-             p.alpha += (Math.random() - 0.5) * 0.1 * speed;
+             p.alpha += (Math.random() - 0.5) * 0.1 * speed * dtScale;
              if (p.alpha < 0.2) p.alpha = 0.2;
              if (p.alpha > 0.8) p.alpha = 0.8;
              
              // Drift
-             p.x -= 0.2 * speed; 
+             p.x -= 0.2 * speed * dtScale; 
              if (p.x < 0) p.x = this.width;
         });
 
         // 7. Fog
         this.fogParticles.forEach(p => {
-            p.x += p.vx * speed;
+            p.x += p.vx * speed * dtScale;
             if (p.x > this.width + 200) p.x = -200;
             if (p.x < -200) p.x = this.width + 200;
         });
@@ -219,11 +224,11 @@ export class EffectRenderer {
         }
 
         this.fireflyParticles.forEach(p => {
-            p.x += p.vx;
-            p.y += p.vy;
+            p.x += p.vx * dtScale;
+            p.y += p.vy * dtScale;
             // Gentle wandering
-            p.vx += (Math.random() - 0.5) * 0.05;
-            p.vy += (Math.random() - 0.5) * 0.05;
+            p.vx += (Math.random() - 0.5) * 0.05 * dtScale;
+            p.vy += (Math.random() - 0.5) * 0.05 * dtScale;
             // Limit speed
             const maxSpeed = 1.0 * speed;
             p.vx = Math.max(-maxSpeed, Math.min(maxSpeed, p.vx));
@@ -236,7 +241,7 @@ export class EffectRenderer {
             if (p.y > this.height + 20) p.y = -20;
 
             // Pulse
-            p.life += 0.05 * speed; // Use life as time/phase
+            p.life += 0.05 * speed * dtScale; // Use life as time/phase
             p.alpha = (Math.sin(p.life) + 1) / 2 * 0.8 + 0.2; // 0.2 to 1.0
         });
     }

@@ -1,19 +1,11 @@
 
 
-export interface Folder {
-  id: string;
-  name: string;
-  parentId: string | null;
-  createdAt: number;
-}
-
 export interface Track {
   id: string;
   name: string;
   artist?: string;
   duration: number;
   url: string; // Object URL (ephemeral)
-  folderId: string | null;
   file?: File | Blob; // Can be missing on reload until loaded from IDB
   mood?: 'Chill' | 'Upbeat' | 'Powerful';
   moodColor?: string;
@@ -77,7 +69,6 @@ export enum VisualizerMode {
   BARS = 'BARS',              // Classic vertical bars
   WAVE = 'WAVE',              // Oscilloscope line
   CIRCULAR = 'CIRCULAR',      // Circular bars
-  FILLED = 'FILLED',          // Filled area under wave
   DUAL_BARS = 'DUAL_BARS',    // Bars growing up and down
   RIPPLE = 'RIPPLE',          // Concentric circles
   PIXEL = 'PIXEL',            // Retro blocky bars
@@ -86,6 +77,11 @@ export enum VisualizerMode {
   BUTTERFLY = 'BUTTERFLY',    // Mirrored wing shape
   AURORA = 'AURORA',          // Rainbow Gradient Wave
   SPECTRUM = 'SPECTRUM',      // Center-out Dot Spectrum (Multi-color)
-  DOT_WAVE = 'DOT_WAVE',      // New: Horizontal wave of dots
-  LED_BARS = 'LED_BARS'       // New: Rainbow Segmented Bars
+  DOT_WAVE = 'DOT_WAVE',      // Horizontal wave of dots
+  LED_BARS = 'LED_BARS',      // Rainbow Segmented Bars
+  FLUID = 'FLUID',            // Gradient Fluid
+  PARTICLES = 'PARTICLES',    // Particle Spectrum
+  JELLY_WAVE = 'JELLY_WAVE',  // Soft/Jelly like smooth wave
+  PULSE_CIRCLES = 'PULSE_CIRCLES', // Heartbeat-like expanding circles
+  FLOWER_PETALS = 'FLOWER_PETALS', // Flower blooming effect
 }

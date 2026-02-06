@@ -3,8 +3,9 @@ import { audioService } from '../services/audioService';
 import { VisualizerMode, VisualizerSettings } from '../types';
 import { 
     drawBars, drawLine, drawCircle, 
-    drawFilledWave, drawDualBars, drawRipple, 
-    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars
+    drawDualBars, drawRipple, 
+    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars,
+    drawFluid, drawParticleSpectrum, drawJellyWave, drawPulseCircles, drawFlowerPetals
 } from '../utils/drawUtils';
 import { EffectRenderer } from '../utils/effectRenderer';
 import { GifController } from '../utils/gifUtils';
@@ -91,7 +92,14 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
       if (lastTimeRef.current === 0) lastTimeRef.current = time;
       const deltaTime = time - lastTimeRef.current;
       lastTimeRef.current = time;
-      if (isPlaying) animationTimeRef.current += deltaTime;
+      
+      // Update animation time (ms)
+      if (isPlaying) {
+          animationTimeRef.current += deltaTime;
+      }
+      
+      // Current Timestamp (ms) to pass to drawers
+      const currentTimestamp = animationTimeRef.current;
 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
@@ -104,7 +112,7 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
 
       let dataArray: Uint8Array;
       let bufferLength: number;
-      if (mode === VisualizerMode.WAVE || mode === VisualizerMode.FILLED) {
+      if (mode === VisualizerMode.WAVE || mode === VisualizerMode.FLUID || mode === VisualizerMode.JELLY_WAVE) {
          dataArray = audioService.getWaveformData(); 
       } else {
          dataArray = audioService.getFrequencyData();
@@ -112,19 +120,21 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
       bufferLength = dataArray.length;
 
       let bassEnergy = 0;
-      if (mode !== VisualizerMode.WAVE && mode !== VisualizerMode.FILLED) {
+      if (mode !== VisualizerMode.WAVE && mode !== VisualizerMode.FLUID && mode !== VisualizerMode.JELLY_WAVE) {
           for(let i=0; i<10; i++) bassEnergy += dataArray[i];
           bassEnergy /= 10;
       } else {
           let sum = 0;
-          for(let i=0; i<bufferLength; i++) sum += Math.abs(dataArray[i] - 128);
-          bassEnergy = (sum / dataArray.length) * 2; 
+          // Approximate energy for waveform
+          for(let i=0; i<bufferLength; i+=10) sum += Math.abs(dataArray[i] - 128);
+          bassEnergy = (sum / (bufferLength/10)) * 2; 
       }
       if (!isPlaying) bassEnergy = 0;
       const isBeat = bassEnergy > 200; 
 
       if (isPlaying) {
-          effectRendererRef.current.update(isBeat, bassEnergy, currentSettings.effectParams);
+          // Pass deltaTime in Seconds
+          effectRendererRef.current.update(isBeat, bassEnergy, currentSettings.effectParams, deltaTime / 1000);
       }
 
       ctx.save();
@@ -170,21 +180,25 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
       const renderSpectrum = (renderWidth: number, renderHeight: number) => {
           if (!mode) return;
           switch (mode) {
-            case VisualizerMode.BARS: drawBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.WAVE: drawLine(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.CIRCULAR: drawCircle(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.FILLED: drawFilledWave(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.DUAL_BARS: drawDualBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.RIPPLE: drawRipple(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.PIXEL: drawPixel(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.EQUALIZER: drawEqualizer(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.STARBURST: drawStarburst(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.BUTTERFLY: drawButterfly(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.AURORA: drawAurora(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.SPECTRUM: drawSpectrum(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.DOT_WAVE: drawDotWave(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            case VisualizerMode.LED_BARS: drawLedBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
-            default: drawBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings); break;
+            case VisualizerMode.BARS: drawBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.WAVE: drawLine(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.CIRCULAR: drawCircle(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.DUAL_BARS: drawDualBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.RIPPLE: drawRipple(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.PIXEL: drawPixel(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.EQUALIZER: drawEqualizer(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.STARBURST: drawStarburst(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.BUTTERFLY: drawButterfly(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.AURORA: drawAurora(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.SPECTRUM: drawSpectrum(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.DOT_WAVE: drawDotWave(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.LED_BARS: drawLedBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.FLUID: drawFluid(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.PARTICLES: drawParticleSpectrum(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.JELLY_WAVE: drawJellyWave(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.PULSE_CIRCLES: drawPulseCircles(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.FLOWER_PETALS: drawFlowerPetals(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            default: drawBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
           }
       };
 

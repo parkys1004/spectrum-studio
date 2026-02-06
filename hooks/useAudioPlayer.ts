@@ -114,23 +114,22 @@ export const useAudioPlayer = (
   const handleNext = useCallback(async () => {
     if (!currentTrack || tracks.length === 0) return;
     
-    const contextTracks = tracks.filter(t => t.folderId === currentTrack.folderId);
-    const currentIndex = contextTracks.findIndex(t => t.id === currentTrack.id);
+    const currentIndex = tracks.findIndex(t => t.id === currentTrack.id);
     
     if (currentIndex !== -1) {
-        const nextIndex = (currentIndex + 1) % contextTracks.length;
-        handleTrackSelect(contextTracks[nextIndex], true);
+        const nextIndex = (currentIndex + 1) % tracks.length;
+        handleTrackSelect(tracks[nextIndex], true);
     }
   }, [currentTrack, tracks]);
 
   const handlePrev = useCallback(() => {
     if (isExporting) return;
     if (!currentTrack || tracks.length === 0) return;
-    const contextTracks = tracks.filter(t => t.folderId === currentTrack.folderId);
-    const currentIndex = contextTracks.findIndex(t => t.id === currentTrack.id);
+    
+    const currentIndex = tracks.findIndex(t => t.id === currentTrack.id);
     if (currentIndex !== -1) {
-        const prevIndex = (currentIndex - 1 + contextTracks.length) % contextTracks.length;
-        handleTrackSelect(contextTracks[prevIndex]);
+        const prevIndex = (currentIndex - 1 + tracks.length) % tracks.length;
+        handleTrackSelect(tracks[prevIndex]);
     }
   }, [currentTrack, tracks, isExporting]);
 
