@@ -129,7 +129,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                      <SpectrumButton 
                         mode={VisualizerMode.AURORA} 
                         label="AURORA" 
-                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-4 6-4 6 4 8 4 8-4 8-4 6 4 6 4" strokeLinecap="round"/><path d="M2 15s3-4 6-4 6 4 8 4 8-4 6 4 6 4" strokeLinecap="round" opacity="0.5"/></svg>}
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12 C 6 6, 12 6, 15 12 S 22 18, 22 12" strokeLinecap="round"/><path d="M2 15 C 6 9, 12 9, 15 15 S 22 21, 22 15" strokeLinecap="round" opacity="0.5"/></svg>}
                     />
                     <SpectrumButton 
                         mode={VisualizerMode.BARS} 
