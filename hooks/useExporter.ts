@@ -72,7 +72,7 @@ export const useExporter = (
               }
 
               console.error("File picker error:", e);
-              alert("파일 위치 선택 중 오류가 발생했습니다.");
+              alert("파일 위치 선택 중 오류가 발생했습니다. 권한 설정을 확인하거나 일반 다운로드 모드로 진행됩니다.");
           }
       } else {
           alert("이 브라우저는 파일 시스템 접근 API를 지원하지 않습니다. 렌더링 시작 시 일반 다운로드로 처리됩니다.");
@@ -122,23 +122,24 @@ export const useExporter = (
 
               // B. If no valid stream yet, try asking user
               if (!writableStream) {
-                  fileHandle = await (window as any).showSaveFilePicker({
-                      suggestedName: `SpectrumStudio_Export_${Date.now()}.mp4`,
-                      types: [{
-                          description: 'MP4 Video File',
-                          accept: { 'video/mp4': ['.mp4'] },
-                      }],
-                  });
+                  try {
+                      fileHandle = await (window as any).showSaveFilePicker({
+                          suggestedName: `SpectrumStudio_Export_${Date.now()}.mp4`,
+                          types: [{
+                              description: 'MP4 Video File',
+                              accept: { 'video/mp4': ['.mp4'] },
+                          }],
+                      });
 
-                  if (fileHandle) {
-                      writableStream = await fileHandle.createWritable();
+                      if (fileHandle) {
+                          writableStream = await fileHandle.createWritable();
+                      }
+                  } catch(e: any) {
+                      if (e.name === 'AbortError') return; // User cancelled
+                      console.warn("Fallback to memory render:", e);
                   }
               }
           } catch (error: any) {
-              if (error.name === 'AbortError') {
-                  return; // User cancelled
-              }
-              // For SecurityError (iframe) or others, log and fallback to memory render (writableStream = null)
               console.warn("FileSystemAccess API failed, proceeding with in-memory render:", error);
               writableStream = null;
           }
@@ -162,6 +163,7 @@ export const useExporter = (
 
           if (writableStream) {
                console.log("Export completed to disk");
+               alert("파일 저장이 완료되었습니다.");
           } else if (result && result.url) {
                 // Manual download fallback
                 const a = document.createElement('a');
@@ -170,7 +172,9 @@ export const useExporter = (
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                URL.revokeObjectURL(result.url);
+                
+                // Add delay to ensure download starts before revoking URL
+                setTimeout(() => URL.revokeObjectURL(result.url), 2000);
           }
 
       } catch (e: any) {
