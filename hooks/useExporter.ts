@@ -176,6 +176,8 @@ export const useExporter = (
           );
 
           if (writableStream) {
+               // CRITICAL FIX: Explicitly close the stream to finalize the file and remove .crswap extension
+               await writableStream.close(); 
                console.log("Export completed to disk");
                alert("파일 저장이 완료되었습니다.");
           } else if (result && result.url) {
@@ -188,12 +190,15 @@ export const useExporter = (
                 document.body.removeChild(a);
                 
                 // Add extended delay (60s) to ensure download starts before revoking URL
-                // Large files on mobile/slow connection need more time to hand over to download manager
                 setTimeout(() => URL.revokeObjectURL(result.url), 60000);
           }
 
       } catch (e: any) {
           console.error("Export Fatal Error:", e);
+          // CRITICAL FIX: Abort stream on error to clean up lock
+          if (writableStream) {
+              try { await writableStream.abort(); } catch(err) { console.warn("Failed to abort stream", err); }
+          }
           alert(`렌더링 중 오류가 발생했습니다: ${e.message}`);
       } finally {
           setIsExporting(false);
