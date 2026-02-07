@@ -30,6 +30,18 @@ export const useExporter = (
       isExportingRef.current = isExporting;
   }, [isExporting]);
 
+  // Prevent accidental tab closure during export
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isExportingRef.current) {
+        e.preventDefault();
+        e.returnValue = ''; // Legacy standard for Chrome
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   const triggerExportModal = () => {
     if (tracks.length === 0) {
         alert("내보낼 트랙이 없습니다.");
@@ -123,6 +135,8 @@ export const useExporter = (
               // B. If no valid stream yet, try asking user
               if (!writableStream) {
                   try {
+                      // Note: Invoking picker here might fail in some async contexts on Vercel/iframe
+                      // Prefer pre-picking using pickExportLocation
                       fileHandle = await (window as any).showSaveFilePicker({
                           suggestedName: `SpectrumStudio_Export_${Date.now()}.mp4`,
                           types: [{
@@ -173,8 +187,9 @@ export const useExporter = (
                 a.click();
                 document.body.removeChild(a);
                 
-                // Add delay to ensure download starts before revoking URL
-                setTimeout(() => URL.revokeObjectURL(result.url), 2000);
+                // Add extended delay (60s) to ensure download starts before revoking URL
+                // Large files on mobile/slow connection need more time to hand over to download manager
+                setTimeout(() => URL.revokeObjectURL(result.url), 60000);
           }
 
       } catch (e: any) {
