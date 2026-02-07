@@ -89,7 +89,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                     <SpectrumButton 
                         mode={VisualizerMode.FLOWER_PETALS} 
                         label="FLOWER" 
-                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2C7 2 2 7 2 12s5 10 10 10 10-5 10-10S17 2 12 2z" opacity="0.2"/><path d="M12 8c0-3-2.5-5-5-5s-3 3-3 5 2 4 5 4" /><path d="M12 8c0-3 2.5-5 5-5s3 3 3 5-2 4-5 4" /><path d="M12 12c-3 0-5 2.5-5 5s3 3 5 3" /><path d="M12 12c3 0 5 2.5 5 5s-3 3-5 3" /><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>}
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2 C 14 2, 15 5, 15 8 C 15 10, 14 11, 12 11 C 10 11, 9 10, 9 8 C 9 5, 10 2, 12 2 Z"/><path d="M12 22 C 10 22, 9 19, 9 16 C 9 14, 10 13, 12 13 C 14 13, 15 14, 15 16 C 15 19, 14 22, 12 22 Z"/><path d="M22 12 C 22 14, 19 15, 16 15 C 14 15, 13 14, 13 12 C 13 10, 14 9, 16 9 C 19 9, 22 10, 22 12 Z"/><path d="M2 12 C 2 10, 5 9, 8 9 C 10 9, 11 10, 11 12 C 11 14, 10 15, 8 15 C 5 15, 2 14, 2 12 Z"/></svg>}
                     />
                     <SpectrumButton 
                         mode={VisualizerMode.PULSE_CIRCLES} 
@@ -139,7 +139,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                     <SpectrumButton 
                         mode={VisualizerMode.WAVE} 
                         label="WAVE" 
-                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-7 6-7 6 7 8 7 8-7 8-7 6 7 6 7" strokeLinecap="round"/></svg>}
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3 -7 6 -7 s 6 7 8 7 s 8 -7 8 -7 s 6 7 6 7" strokeLinecap="round"/></svg>}
                     />
                     <SpectrumButton 
                         mode={VisualizerMode.CIRCULAR} 

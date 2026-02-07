@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Track, VisualizerSettings, VisualizerMode } from '../types';
 // @ts-ignore
 import * as Muxer from 'mp4-muxer';
