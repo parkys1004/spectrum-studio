@@ -87,7 +87,6 @@ class RenderService {
     if (tracks.length === 0) throw new Error("No tracks to render");
 
     // 1. Load Audio Buffers (Parallelized Batch Loading)
-    // Optimization: Process multiple tracks concurrently to speed up decoding
     const decodedBuffers: (AudioBuffer | null)[] = new Array(tracks.length).fill(null);
     let totalDuration = 0;
     
@@ -139,11 +138,9 @@ class RenderService {
     }
 
     // 2. Setup Offline Context
-    // Use 44100Hz for compatibility and lower memory usage
     const sampleRate = 44100;
     const frameCount = Math.ceil(sampleRate * totalDuration);
     
-    // Memory Safety Check
     if (totalDuration > 3600) {
         throw new Error("총 재생 시간이 너무 깁니다. 1시간 이내로 트랙을 구성해주세요.");
     }
@@ -168,21 +165,35 @@ class RenderService {
     const width = resolution === '1080p' ? 1920 : 1280;
     const height = resolution === '1080p' ? 1080 : 720;
     const fps = 30;
-    
     const bitrate = resolution === '1080p' ? 6_000_000 : 3_000_000;
 
     let muxerTarget: any;
     if (writableStream) {
-        muxerTarget = new Muxer.FileSystemWritableFileStreamTarget(writableStream);
+        // Safe check for FileSystemWritableFileStreamTarget availability
+        if (Muxer.FileSystemWritableFileStreamTarget) {
+            muxerTarget = new Muxer.FileSystemWritableFileStreamTarget(writableStream);
+        } else {
+             // Fallback if class not found on Muxer object
+             muxerTarget = new (Muxer as any).FileSystemWritableFileStreamTarget(writableStream);
+        }
     } else {
-        muxerTarget = new Muxer.ArrayBufferTarget();
+        if (Muxer.ArrayBufferTarget) {
+            muxerTarget = new Muxer.ArrayBufferTarget();
+        } else {
+            muxerTarget = new (Muxer as any).ArrayBufferTarget();
+        }
     }
 
-    const muxer = new Muxer.Muxer({
+    const MuxerClass = Muxer.Muxer || (Muxer as any).Muxer;
+    if (!MuxerClass) throw new Error("Muxer library init failed");
+
+    // CRITICAL FIX: 'fastStart: in-memory' ensures valid MOOV atom generation for Blob downloads
+    // 'fastStart: false' (default) can result in 0-byte or corrupt files when not streaming to disk
+    const muxer = new MuxerClass({
         target: muxerTarget,
         video: { codec: 'avc', width, height },
         audio: { codec: 'aac', sampleRate, numberOfChannels: 2 },
-        fastStart: false 
+        fastStart: writableStream ? false : 'in-memory' 
     });
 
     const videoEncoder = new VideoEncoder({
@@ -193,23 +204,19 @@ class RenderService {
         }
     }) as VideoEncoderWithState;
 
-    // Optimization: Prefer Hardware Acceleration
-    // Level 4.2 (0x2a = 42) supports 1080p.
-    // Main Profile (0x4d = 77) is high quality and widely supported.
     const codecConfig = {
         codec: 'avc1.4d002a', // Main Profile, Level 4.2
         width, 
         height, 
         bitrate, 
         framerate: fps,
-        hardwareAcceleration: 'prefer-hardware' as const // Optimization: Prefer GPU
+        hardwareAcceleration: 'prefer-hardware' as const
     };
 
     try {
         videoEncoder.configure(codecConfig);
     } catch (e) {
         console.warn("Hardware config failed, trying generic AVC", e);
-        // Fallback to Baseline Profile (0x42), Level 4.2 (0x2a)
         videoEncoder.configure({
             codec: 'avc1.42002a', 
             width, height, bitrate, framerate: fps,
@@ -320,10 +327,8 @@ class RenderService {
         const processFrame = async (i: number) => {
             if (signal.aborted || this.hasEncoderError) return;
 
-            // Optimization: Increased Queue limit to 60 to keep GPU busy
             await this.waitForQueue(videoEncoder, 60);
             
-            // UI Update (Throttled)
             if (i % 30 === 0) { 
                 const elapsed = (performance.now() - startTime) / 1000;
                 let speedInfo = "";
@@ -337,7 +342,6 @@ class RenderService {
                 await new Promise(r => setTimeout(r, 0));
             }
 
-            // --- Analysis & Draw ---
             const timeSeconds = i / fps;
             const timeMs = timeSeconds * 1000;
 
@@ -451,7 +455,6 @@ class RenderService {
 
             ctx.restore(); 
 
-            // Video Encoding
             const frame = new VideoFrame(canvas, { 
                 timestamp: i * (1_000_000 / fps),
                 duration: 1_000_000 / fps
@@ -465,7 +468,6 @@ class RenderService {
             }
             frame.close();
 
-            // Schedule Next Frame
             if (i + 1 < totalFrames) {
                 const nextTime = (i + 1) / fps;
                 offlineCtx.suspend(nextTime)
@@ -484,7 +486,6 @@ class RenderService {
 
         offlineCtx.suspend(0).then(() => processFrame(0));
         
-        // This promise resolves when the offline context finishes processing audio
         const renderedBuffer = await offlineCtx.startRendering();
 
         // --- Finalize Video ---
@@ -563,9 +564,9 @@ class RenderService {
             return null;
         }
 
-        const { buffer } = (muxer.target as Muxer.ArrayBufferTarget);
-        if (buffer.byteLength === 0) {
-            throw new Error("생성된 파일 크기가 0바이트입니다.");
+        const { buffer } = (muxer.target as any); // Access internal buffer
+        if (!buffer || buffer.byteLength === 0) {
+            throw new Error("생성된 파일 크기가 0바이트입니다. 브라우저 호환성 문제일 수 있습니다.");
         }
 
         const blob = new Blob([buffer], { type: 'video/mp4' });
