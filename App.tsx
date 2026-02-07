@@ -184,7 +184,7 @@ const App: React.FC = () => {
         onClose={() => exporter.setShowExportModal(false)}
         onConfirm={exporter.startPlaylistExport}
         title="고속 미디어 내보내기"
-        confirmText="고속 렌더링 시작"
+        confirmText="렌더링 시작"
       >
         {/* Modal Content */}
         <div className="space-y-6">
@@ -193,9 +193,10 @@ const App: React.FC = () => {
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 </div>
                 <div>
-                    <h4 className="font-bold text-xl text-app-text">오프라인 고속 렌더링</h4>
+                    <h4 className="font-bold text-xl text-app-text">안정형 고속 렌더링</h4>
                     <p className="text-app-textMuted mt-1 leading-relaxed text-base">
-                        실시간 재생 없이 파일을 직접 처리하여 <span className="text-app-accent font-bold">최대 10배 빠른 속도</span>로 영상을 생성합니다.
+                        파일을 메모리에서 먼저 생성한 후 저장합니다.<br/>
+                        <span className="text-app-accent font-bold">0바이트 오류 없이 안정적으로 저장됩니다.</span>
                     </p>
                 </div>
             </div>
@@ -206,7 +207,7 @@ const App: React.FC = () => {
                     <span className="text-app-text font-bold text-base">{exporter.exportStats.total} 개</span>
                 </div>
                 
-                <div className="space-y-2 pb-2 border-b border-gray-200">
+                <div className="space-y-2 pb-2">
                     <span className="block mb-2 font-semibold text-app-textMuted">해상도 설정</span>
                     <label className="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:shadow-neu-flat transition-all">
                         <input 
@@ -233,30 +234,11 @@ const App: React.FC = () => {
                         <span className="text-app-textMuted text-xs ml-auto">1280x720</span>
                     </label>
                 </div>
-
-                <div className="space-y-2 pt-1">
-                    <span className="block mb-2 font-semibold text-app-textMuted">저장 위치</span>
-                    <button 
-                        onClick={exporter.pickExportLocation}
-                        className="w-full flex items-center justify-between p-3 rounded-xl bg-app-bg shadow-neu-flat hover:text-app-accent active:shadow-neu-pressed transition-all group border border-transparent hover:border-app-accent/20"
-                    >
-                        <div className="flex items-center">
-                            <div className="p-2 rounded-lg bg-gray-200 text-gray-500 mr-3 group-hover:text-app-accent group-hover:bg-white transition-colors">
-                                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-                            </div>
-                            <span className={`text-sm font-bold ${exporter.exportFileName ? 'text-app-accent' : 'text-gray-400'}`}>
-                                {exporter.exportFileName || "파일 저장 위치 선택..."}
-                            </span>
-                        </div>
-                        {exporter.exportFileName && (
-                             <div className="flex items-center text-green-500 bg-green-50 px-2 py-1 rounded-md border border-green-100">
-                                <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>
-                                <span className="text-xs font-bold">준비됨</span>
-                             </div>
-                        )}
-                    </button>
-                </div>
             </div>
+            
+             <p className="text-xs text-center text-gray-400 mt-2">
+                * 렌더링이 완료되면 자동으로 다운로드가 시작되거나 저장 위치를 묻습니다.
+            </p>
         </div>
       </Modal>
 

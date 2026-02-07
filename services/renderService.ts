@@ -71,8 +71,7 @@ class RenderService {
     visualizerSettings: VisualizerSettings,
     visualizerMode: VisualizerMode | null,
     resolution: '1080p' | '720p',
-    onProgress: (current: number, total: number, phase: string) => void,
-    writableStream: FileSystemWritableFileStream | null = null
+    onProgress: (current: number, total: number, phase: string) => void
   ): Promise<{ url: string, filename: string } | null> {
     
     this.abortController = new AbortController();
@@ -161,39 +160,31 @@ class RenderService {
         offset += buf.duration;
     });
 
-    // 3. Setup Muxer & Encoders
+    // 3. Setup Muxer & Encoders (FORCE IN-MEMORY)
     const width = resolution === '1080p' ? 1920 : 1280;
     const height = resolution === '1080p' ? 1080 : 720;
     const fps = 30;
     const bitrate = resolution === '1080p' ? 6_000_000 : 3_000_000;
 
     let muxerTarget: any;
-    if (writableStream) {
-        // Safe check for FileSystemWritableFileStreamTarget availability
-        if (Muxer.FileSystemWritableFileStreamTarget) {
-            muxerTarget = new Muxer.FileSystemWritableFileStreamTarget(writableStream);
-        } else {
-             // Fallback if class not found on Muxer object
-             muxerTarget = new (Muxer as any).FileSystemWritableFileStreamTarget(writableStream);
-        }
+    // Always use ArrayBufferTarget for stability
+    if (Muxer.ArrayBufferTarget) {
+        muxerTarget = new Muxer.ArrayBufferTarget();
     } else {
-        if (Muxer.ArrayBufferTarget) {
-            muxerTarget = new Muxer.ArrayBufferTarget();
-        } else {
-            muxerTarget = new (Muxer as any).ArrayBufferTarget();
-        }
+        muxerTarget = new (Muxer as any).ArrayBufferTarget();
     }
 
     const MuxerClass = Muxer.Muxer || (Muxer as any).Muxer;
     if (!MuxerClass) throw new Error("Muxer library init failed");
 
-    // CRITICAL FIX: 'fastStart: in-memory' ensures valid MOOV atom generation for Blob downloads
-    // 'fastStart: false' (default) can result in 0-byte or corrupt files when not streaming to disk
+    // FORCE 'fastStart: in-memory'
+    // This ensures the MP4 MOOV atom is written correctly at the start of the file structure in memory
+    // preventing 0-byte or unplayable files.
     const muxer = new MuxerClass({
         target: muxerTarget,
         video: { codec: 'avc', width, height },
         audio: { codec: 'aac', sampleRate, numberOfChannels: 2 },
-        fastStart: writableStream ? false : 'in-memory' 
+        fastStart: 'in-memory' 
     });
 
     const videoEncoder = new VideoEncoder({
@@ -560,17 +551,16 @@ class RenderService {
         if(stickerBitmap) stickerBitmap.close();
         gifController.dispose();
 
-        if (writableStream) {
-            return null;
-        }
-
-        const { buffer } = (muxer.target as any); // Access internal buffer
+        // Retrieve the complete file buffer from memory
+        const { buffer } = (muxer.target as any); 
         if (!buffer || buffer.byteLength === 0) {
-            throw new Error("생성된 파일 크기가 0바이트입니다. 브라우저 호환성 문제일 수 있습니다.");
+            throw new Error("생성된 파일 크기가 0바이트입니다. 메모리 부족 또는 인코딩 오류일 수 있습니다.");
         }
 
         const blob = new Blob([buffer], { type: 'video/mp4' });
         const url = URL.createObjectURL(blob);
+        
+        // Return valid blob URL to be saved by the UI
         return { url, filename: `SpectrumStudio_Export_${Date.now()}.mp4` };
 
     } catch (e) {

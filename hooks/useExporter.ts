@@ -21,10 +21,6 @@ export const useExporter = (
   const [exportStats, setExportStats] = useState<ExportStats>({ current: 0, total: 0, phase: '' });
   const [exportResolution, setExportResolution] = useState<'1080p' | '720p'>('1080p');
   
-  // New state for pre-picked file handle
-  const [exportFileHandle, setExportFileHandle] = useState<any>(null);
-  const [exportFileName, setExportFileName] = useState<string>('');
-
   const isExportingRef = useRef(isExporting);
   useEffect(() => {
       isExportingRef.current = isExporting;
@@ -54,54 +50,7 @@ export const useExporter = (
         phase: '준비 중...'
     });
     setExportResolution('1080p');
-    // Don't clear handle if it's already set? Better to clear to avoid stale handles across sessions
-    setExportFileHandle(null);
-    setExportFileName('');
     setShowExportModal(true);
-  };
-
-  const pickExportLocation = async () => {
-      if ('showSaveFilePicker' in window) {
-          try {
-              const handle = await (window as any).showSaveFilePicker({
-                  suggestedName: `SpectrumStudio_Export_${Date.now()}.mp4`,
-                  types: [{
-                      description: 'MP4 Video File',
-                      accept: { 'video/mp4': ['.mp4'] },
-                  }],
-              });
-              setExportFileHandle(handle);
-              setExportFileName(handle.name);
-          } catch (e: any) {
-              if (e.name === 'AbortError') return;
-
-              // Handle SecurityError (iframe restriction)
-              if (e.name === 'SecurityError' || e.message?.includes('Cross origin')) {
-                  alert("현재 환경(iframe 등)에서는 파일 위치 미리 선택이 지원되지 않습니다. 렌더링 완료 후 자동으로 다운로드됩니다.");
-                  setExportFileHandle(null);
-                  setExportFileName('');
-                  return;
-              }
-
-              console.error("File picker error:", e);
-              alert("파일 위치 선택 중 오류가 발생했습니다. 권한 설정을 확인하거나 일반 다운로드 모드로 진행됩니다.");
-          }
-      } else {
-          alert("이 브라우저는 파일 시스템 접근 API를 지원하지 않습니다. 렌더링 시작 시 일반 다운로드로 처리됩니다.");
-      }
-  };
-
-  // Helper to verify permissions for existing handles
-  const verifyPermission = async (fileHandle: any, readWrite: boolean) => {
-    try {
-        const options = { mode: readWrite ? 'readwrite' : 'read' };
-        if ((await fileHandle.queryPermission(options)) === 'granted') return true;
-        if ((await fileHandle.requestPermission(options)) === 'granted') return true;
-        return false;
-    } catch (e) {
-        console.warn("Permission verification failed:", e);
-        return false;
-    }
   };
 
   const startPlaylistExport = async () => {
@@ -116,54 +65,12 @@ export const useExporter = (
           return;
       }
       
-      let fileHandle = exportFileHandle;
-      let writableStream: any = null;
-
-      // 2. Resolve File Handle & Stream (Before closing modal)
-      if ('showSaveFilePicker' in window) {
-          try {
-              // A. Try reusing existing handle
-              if (fileHandle) {
-                  const hasPermission = await verifyPermission(fileHandle, true);
-                  if (hasPermission) {
-                      writableStream = await fileHandle.createWritable();
-                  } else {
-                      fileHandle = null; // Permission denied/lost
-                  }
-              }
-
-              // B. If no valid stream yet, try asking user
-              if (!writableStream) {
-                  try {
-                      // Note: Invoking picker here might fail in some async contexts on Vercel/iframe
-                      // Prefer pre-picking using pickExportLocation
-                      fileHandle = await (window as any).showSaveFilePicker({
-                          suggestedName: `SpectrumStudio_Export_${Date.now()}.mp4`,
-                          types: [{
-                              description: 'MP4 Video File',
-                              accept: { 'video/mp4': ['.mp4'] },
-                          }],
-                      });
-
-                      if (fileHandle) {
-                          writableStream = await fileHandle.createWritable();
-                      }
-                  } catch(e: any) {
-                      if (e.name === 'AbortError') return; // User cancelled
-                      console.warn("Fallback to memory render:", e);
-                  }
-              }
-          } catch (error: any) {
-              console.warn("FileSystemAccess API failed, proceeding with in-memory render:", error);
-              writableStream = null;
-          }
-      }
-
-      // 3. Close Modal & Start Process
+      // 2. Close Modal & Start Process
       setShowExportModal(false);
       setIsExporting(true);
 
       try {
+          // ALWAYS Render to Memory first. This avoids 0-byte file issues caused by stream interruptions.
           const result = await renderService.renderPlaylist(
               tracks,
               visualizerSettings,
@@ -171,40 +78,55 @@ export const useExporter = (
               exportResolution,
               (current, total, phase) => {
                   setExportStats({ current, total, phase });
-              },
-              writableStream
+              }
           );
 
-          if (writableStream) {
-               // CRITICAL FIX: Explicitly close the stream to finalize the file and remove .crswap extension
-               await writableStream.close(); 
-               console.log("Export completed to disk");
-               alert("파일 저장이 완료되었습니다.");
-          } else if (result && result.url) {
-                // Manual download fallback
-                const a = document.createElement('a');
-                a.href = result.url;
-                a.download = result.filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+          if (result && result.url) {
+                // Once rendering is fully complete and successful, trigger the download/save.
+                // Try modern Save File Picker first
+                if ('showSaveFilePicker' in window) {
+                    try {
+                        const handle = await (window as any).showSaveFilePicker({
+                            suggestedName: result.filename,
+                            types: [{
+                                description: 'MP4 Video File',
+                                accept: { 'video/mp4': ['.mp4'] },
+                            }],
+                        });
+                        const writable = await handle.createWritable();
+                        const response = await fetch(result.url);
+                        await response.body?.pipeTo(writable);
+                        alert("파일 저장이 완료되었습니다.");
+                    } catch (err: any) {
+                        if (err.name !== 'AbortError') {
+                            // Fallback to auto download if picker fails or isn't supported in context
+                            triggerAutoDownload(result.url, result.filename);
+                        }
+                    }
+                } else {
+                    // Fallback for browsers without File System Access API
+                    triggerAutoDownload(result.url, result.filename);
+                }
                 
-                // Add extended delay (60s) to ensure download starts before revoking URL
+                // Cleanup URL after a minute
                 setTimeout(() => URL.revokeObjectURL(result.url), 60000);
           }
 
       } catch (e: any) {
           console.error("Export Fatal Error:", e);
-          // CRITICAL FIX: Abort stream on error to clean up lock
-          if (writableStream) {
-              try { await writableStream.abort(); } catch(err) { console.warn("Failed to abort stream", err); }
-          }
           alert(`렌더링 중 오류가 발생했습니다: ${e.message}`);
       } finally {
           setIsExporting(false);
-          setExportFileHandle(null);
-          setExportFileName('');
       }
+  };
+
+  const triggerAutoDownload = (url: string, filename: string) => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
   };
 
   const cancelExport = () => {
@@ -221,8 +143,6 @@ export const useExporter = (
     setExportResolution,
     triggerExportModal,
     startPlaylistExport,
-    cancelExport,
-    pickExportLocation,
-    exportFileName
+    cancelExport
   };
 };
