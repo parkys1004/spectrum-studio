@@ -226,7 +226,7 @@ const Playlist: React.FC<PlaylistProps> = ({
           )}
       </div>
 
-      {/* Kmong Promotion Button */}
+      {/* Kmong Promotion Button & Credit */}
       <div className="px-4 pt-2 pb-1 bg-app-bg border-t border-white/40">
           <a 
               href="https://kmong.com/self-marketing/730531/ZQh4nXZpK5" 
@@ -237,6 +237,11 @@ const Playlist: React.FC<PlaylistProps> = ({
               <span className="mr-2 text-yellow-500 text-sm">★</span> 
               <span>크몽 방문하기</span>
           </a>
+          <div className="mt-3 mb-1 text-center">
+              <span className="text-[11px] font-black text-gray-400 tracking-[0.2em] uppercase drop-shadow-sm">
+                  Produced by 5barTV
+              </span>
+          </div>
       </div>
       
       {/* Footer Status */}
