@@ -202,6 +202,17 @@ class RenderService {
     const fps = 30;
     const bitrate = resolution === '1080p' ? 6_000_000 : 3_000_000;
 
+    // SCALING LOGIC: 
+    // The design/preview canvas is 1920x1080. If rendering at 720p, we must scale absolute pixel values (positions, thickness).
+    const scaleFactor = width / 1920;
+
+    const scaledSettings: VisualizerSettings = {
+        ...visualizerSettings,
+        lineThickness: visualizerSettings.lineThickness * scaleFactor,
+        positionX: visualizerSettings.positionX * scaleFactor,
+        positionY: visualizerSettings.positionY * scaleFactor,
+    };
+
     let muxerTarget: any;
     // Always use ArrayBufferTarget for stability
     if (Muxer.ArrayBufferTarget) {
@@ -328,25 +339,25 @@ class RenderService {
     const renderSpectrum = (context: OffscreenCanvasRenderingContext2D, w: number, h: number, timestamp: number) => {
          if (!visualizerMode) return;
          switch (visualizerMode) {
-            case VisualizerMode.BARS: drawBars(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.WAVE: drawLine(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.CIRCULAR: drawCircle(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.DUAL_BARS: drawDualBars(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.RIPPLE: drawRipple(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.PIXEL: drawPixel(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.EQUALIZER: drawEqualizer(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.STARBURST: drawStarburst(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.BUTTERFLY: drawButterfly(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.AURORA: drawAurora(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.SPECTRUM: drawSpectrum(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.DOT_WAVE: drawDotWave(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.LED_BARS: drawLedBars(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.FLUID: drawFluid(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.PARTICLES: drawParticleSpectrum(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.JELLY_WAVE: drawJellyWave(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.PULSE_CIRCLES: drawPulseCircles(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            case VisualizerMode.FLOWER_PETALS: drawFlowerPetals(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp); break;
-            default: drawBars(context, dataArray, dataArray.length, w, h, visualizerSettings, timestamp);
+            case VisualizerMode.BARS: drawBars(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.WAVE: drawLine(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.CIRCULAR: drawCircle(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.DUAL_BARS: drawDualBars(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.RIPPLE: drawRipple(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.PIXEL: drawPixel(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.EQUALIZER: drawEqualizer(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.STARBURST: drawStarburst(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.BUTTERFLY: drawButterfly(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.AURORA: drawAurora(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.SPECTRUM: drawSpectrum(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.DOT_WAVE: drawDotWave(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.LED_BARS: drawLedBars(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.FLUID: drawFluid(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.PARTICLES: drawParticleSpectrum(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.JELLY_WAVE: drawJellyWave(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.PULSE_CIRCLES: drawPulseCircles(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.FLOWER_PETALS: drawFlowerPetals(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            default: drawBars(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp);
          }
     };
 
@@ -398,7 +409,8 @@ class RenderService {
             ctx.save();
             if (visualizerSettings.effects.shake && isBeat) {
                 const s = visualizerSettings.effectParams.shakeStrength || 1;
-                ctx.translate((Math.random()-0.5)*20*s, (Math.random()-0.5)*20*s);
+                const shakeRange = 20 * scaleFactor;
+                ctx.translate((Math.random()-0.5)*shakeRange*s, (Math.random()-0.5)*shakeRange*s);
             }
             if (visualizerSettings.effects.pulse) {
                  const zoom = 1.0 + (bassEnergy/255)*0.1;
@@ -422,8 +434,8 @@ class RenderService {
             // Spectrum
             ctx.save();
             ctx.translate(width/2, height/2);
-            ctx.translate(visualizerSettings.positionX, visualizerSettings.positionY);
-            ctx.scale(visualizerSettings.scale, visualizerSettings.scale);
+            ctx.translate(scaledSettings.positionX, scaledSettings.positionY);
+            ctx.scale(scaledSettings.scale, scaledSettings.scale);
             
             if (visualizerSettings.effects.mirror) {
                 ctx.save(); 
@@ -470,9 +482,9 @@ class RenderService {
 
             if (visualizerSettings.effects.glitch && isBeat) {
                 const glStr = visualizerSettings.effectParams.glitchStrength || 1.0;
-                const sliceHeight = Math.random() * 50 + 10;
+                const sliceHeight = (Math.random() * 50 + 10) * scaleFactor;
                 const sliceY = Math.random() * height;
-                const offset = (Math.random() - 0.5) * 40 * glStr;
+                const offset = (Math.random() - 0.5) * 40 * glStr * scaleFactor;
                 try {
                     ctx.drawImage(canvas, 0, sliceY, width, sliceHeight, offset, sliceY, width, sliceHeight);
                     ctx.fillStyle = `rgba(255, 0, 0, ${0.2 * glStr})`;
