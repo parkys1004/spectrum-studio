@@ -87,6 +87,7 @@ const App: React.FC = () => {
   // UI State
   const [trackToDelete, setTrackToDelete] = useState<string | null>(null);
   const [showClearLibraryModal, setShowClearLibraryModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
 
   // 3. Audio Player Logic
   const audioPlayer = useAudioPlayer(
@@ -292,6 +293,43 @@ const App: React.FC = () => {
         </div>
       </Modal>
 
+      {/* Manual Modal */}
+      <Modal
+        isOpen={showManualModal}
+        onClose={() => setShowManualModal(false)}
+        onConfirm={() => setShowManualModal(false)}
+        title="사용 설명서 (MANUAL)"
+        confirmText="닫기"
+      >
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+            <section>
+                <h4 className="font-bold text-app-accent mb-1 flex items-center"><span className="w-5 h-5 rounded-full bg-app-accent text-white text-xs flex items-center justify-center mr-2">1</span>음악 관리 및 순서 변경</h4>
+                <p className="text-sm text-app-textMuted pl-7">
+                    '파일 가져오기'로 음악을 추가하세요. <br/>
+                    <span className="text-app-text font-semibold">트랙을 드래그하여 재생 순서를 자유롭게 변경</span>할 수 있습니다. 체크박스를 선택하여 원하는 곡만 렌더링하거나 삭제할 수 있습니다.
+                </p>
+            </section>
+            <section>
+                <h4 className="font-bold text-app-accent mb-1 flex items-center"><span className="w-5 h-5 rounded-full bg-app-accent text-white text-xs flex items-center justify-center mr-2">2</span>시각화 및 효과 설정</h4>
+                <p className="text-sm text-app-textMuted pl-7">
+                    중앙 패널에서 시각화 모드를 선택하고, 우측 속성 패널에서 배경, 로고, 특수 효과(눈, 비, 글리치 등)를 적용하여 나만의 영상을 꾸며보세요.
+                </p>
+            </section>
+            <section>
+                <h4 className="font-bold text-app-accent mb-1 flex items-center"><span className="w-5 h-5 rounded-full bg-app-accent text-white text-xs flex items-center justify-center mr-2">3</span>선택적 렌더링 (내보내기)</h4>
+                <p className="text-sm text-app-textMuted pl-7">
+                    원하는 트랙만 체크하여 '내보내기'를 누르면 <span className="text-app-text font-semibold">선택된 곡들만 합쳐서 하나의 영상으로</span> 만들어집니다. 선택이 없으면 전체 트랙이 렌더링됩니다.
+                </p>
+            </section>
+            <section>
+                <h4 className="font-bold text-app-accent mb-1 flex items-center"><span className="w-5 h-5 rounded-full bg-app-accent text-white text-xs flex items-center justify-center mr-2">4</span>타임라인 복사 (유튜브 챕터)</h4>
+                <p className="text-sm text-app-textMuted pl-7">
+                    '타임라인 복사' 버튼을 클릭하면 현재 재생 목록의 시간 정보가 클립보드에 복사됩니다. 유튜브 영상 설명에 붙여넣어 챕터 기능을 바로 사용할 수 있습니다.
+                </p>
+            </section>
+        </div>
+      </Modal>
+
       {/* Main Grid Layout - Spaced for Neumorphism */}
       <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
         
@@ -314,6 +352,7 @@ const App: React.FC = () => {
                   onToggleSelection={toggleTrackSelection}
                   onToggleSelectAll={toggleSelectAll}
                   onCopyTimeline={handleCopyTimeline}
+                  onOpenManual={() => setShowManualModal(true)}
                 />
             </div>
         </BentoBox>
