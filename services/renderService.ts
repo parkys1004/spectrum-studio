@@ -398,18 +398,21 @@ class RenderService {
                 for(let k=0; k<dataArray.length; k+=step) sum += Math.abs(dataArray[k] - 128);
                 bassEnergy = (sum / (dataArray.length/step)) * 2; 
             }
-            const isBeat = bassEnergy > 200;
+            
+            // Lowered threshold for export as well
+            const isBeat = bassEnergy > 140; 
             
             const fixedDeltaTime = 1.0 / fps;
             effectRenderer.update(isBeat, bassEnergy, visualizerSettings.effectParams, fixedDeltaTime);
 
+            // Clear Canvas for safety
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, width, height);
             
             ctx.save();
             if (visualizerSettings.effects.shake && isBeat) {
                 const s = visualizerSettings.effectParams.shakeStrength || 1;
-                const shakeRange = 20 * scaleFactor;
+                const shakeRange = 30 * scaleFactor; // Matched Visualizer.tsx range
                 ctx.translate((Math.random()-0.5)*shakeRange*s, (Math.random()-0.5)*shakeRange*s);
             }
             if (visualizerSettings.effects.pulse) {
@@ -428,6 +431,10 @@ class RenderService {
                  else { dw = height*r; dh = height; ox=(width-dw)/2; oy=0; }
                  ctx.drawImage(bgBitmap, ox, oy, dw, dh);
                  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                 ctx.fillRect(0,0,width,height);
+            } else {
+                 // Explicit background if no image
+                 ctx.fillStyle = '#111111';
                  ctx.fillRect(0,0,width,height);
             }
 

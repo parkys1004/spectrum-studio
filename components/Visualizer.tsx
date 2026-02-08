@@ -130,18 +130,24 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
           bassEnergy = (sum / (bufferLength/10)) * 2; 
       }
       if (!isPlaying) bassEnergy = 0;
-      const isBeat = bassEnergy > 200; 
+      
+      // Lowered threshold for better responsiveness
+      const isBeat = bassEnergy > 140; 
 
       if (isPlaying) {
           // Pass deltaTime in Seconds
           effectRendererRef.current.update(isBeat, bassEnergy, currentSettings.effectParams, deltaTime / 1000);
       }
 
+      // Clear Canvas BEFORE transforms to prevent shake artifacts
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, height);
+
       ctx.save();
       if (currentSettings.effects.shake && isBeat) {
           const strength = currentSettings.effectParams.shakeStrength || 1.0;
-          const shakeX = (Math.random() - 0.5) * 20 * strength;
-          const shakeY = (Math.random() - 0.5) * 20 * strength;
+          const shakeX = (Math.random() - 0.5) * 30 * strength; // Increased range slightly
+          const shakeY = (Math.random() - 0.5) * 30 * strength;
           ctx.translate(shakeX, shakeY);
       }
       if (currentSettings.effects.pulse) {
@@ -172,7 +178,7 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
           ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
           ctx.fillRect(0, 0, width, height);
       } else {
-          // Keep canvas black for contrast
+          // Keep canvas dark gray if no image (already cleared black above, but this adds the "panel" color)
           ctx.fillStyle = '#111111';
           ctx.fillRect(0, 0, width, height);
       }
