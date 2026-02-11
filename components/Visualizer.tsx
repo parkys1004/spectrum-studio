@@ -175,8 +175,7 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
               offsetY = 0;
           }
           ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-          ctx.fillRect(0, 0, width, height);
+          // Dark overlay removed for cleaner background
       } else {
           // Keep canvas dark gray if no image (already cleared black above, but this adds the "panel" color)
           ctx.fillStyle = '#111111';

@@ -430,8 +430,7 @@ class RenderService {
                  if (cr > r) { dw = width; dh = width/r; ox=0; oy=(height-dh)/2; }
                  else { dw = height*r; dh = height; ox=(width-dw)/2; oy=0; }
                  ctx.drawImage(bgBitmap, ox, oy, dw, dh);
-                 ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                 ctx.fillRect(0,0,width,height);
+                 // Dark overlay removed for cleaner background
             } else {
                  // Explicit background if no image
                  ctx.fillStyle = '#111111';
