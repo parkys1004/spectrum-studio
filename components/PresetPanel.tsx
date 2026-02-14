@@ -162,9 +162,9 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
                         icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="14" width="4" height="4"/><rect x="10" y="8" width="4" height="4"/><rect x="10" y="14" width="4" height="4"/><rect x="16" y="10" width="4" height="4"/><rect x="16" y="14" width="4" height="4"/></svg>}
                     />
                      <SpectrumButton 
-                        mode={VisualizerMode.EQUALIZER} 
-                        label="EQUALIZER" 
-                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="12" width="4" height="2"/><rect x="4" y="15" width="4" height="2"/><rect x="4" y="18" width="4" height="2"/><rect x="10" y="9" width="4" height="2"/><rect x="10" y="12" width="4" height="2"/><rect x="10" y="15" width="4" height="2"/><rect x="10" y="18" width="4" height="2"/><rect x="16" y="15" width="4" height="2"/><rect x="16" y="18" width="4" height="2"/></svg>}
+                        mode={VisualizerMode.ROUNDED_BARS} 
+                        label="ROUND BARS" 
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="10" width="4" height="11" rx="2"/><rect x="10" y="5" width="4" height="16" rx="2"/><rect x="16" y="12" width="4" height="9" rx="2"/></svg>}
                     />
                     <SpectrumButton 
                         mode={VisualizerMode.STARBURST} 

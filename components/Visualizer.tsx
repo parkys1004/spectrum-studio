@@ -4,7 +4,7 @@ import { VisualizerMode, VisualizerSettings } from '../types';
 import { 
     drawBars, drawLine, drawCircle, 
     drawDualBars, drawRipple, 
-    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars,
+    drawPixel, drawRoundedBars, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars,
     drawFluid, drawParticleSpectrum, drawJellyWave, drawPulseCircles, drawFlowerPetals
 } from '../utils/drawUtils';
 import { EffectRenderer } from '../utils/effectRenderer';
@@ -191,7 +191,7 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(({ isPlaying, 
             case VisualizerMode.DUAL_BARS: drawDualBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
             case VisualizerMode.RIPPLE: drawRipple(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
             case VisualizerMode.PIXEL: drawPixel(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
-            case VisualizerMode.EQUALIZER: drawEqualizer(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
+            case VisualizerMode.ROUNDED_BARS: drawRoundedBars(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
             case VisualizerMode.STARBURST: drawStarburst(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
             case VisualizerMode.BUTTERFLY: drawButterfly(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;
             case VisualizerMode.AURORA: drawAurora(ctx, dataArray, bufferLength, renderWidth, renderHeight, currentSettings, currentTimestamp); break;

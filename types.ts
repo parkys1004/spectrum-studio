@@ -13,7 +13,8 @@ export interface Track {
 
 export interface VisualizerSettings {
   color: string;
-  lineThickness: number; // 1 to 10
+  lineThickness: number; // 1 to 100
+  roundness: number;     // 0 to 50 (Border Radius)
   amplitude: number;     // 0.5 to 3.0
   sensitivity: number;   // 0.1 to 0.99 (smoothing)
   backgroundImage: string | null; // URL string
@@ -72,7 +73,7 @@ export enum VisualizerMode {
   DUAL_BARS = 'DUAL_BARS',    // Bars growing up and down
   RIPPLE = 'RIPPLE',          // Concentric circles
   PIXEL = 'PIXEL',            // Retro blocky bars
-  EQUALIZER = 'EQUALIZER',    // Segmented LED style
+  ROUNDED_BARS = 'ROUNDED_BARS', // Modern rounded bars (Replaces Equalizer)
   STARBURST = 'STARBURST',    // Radial lines from center
   BUTTERFLY = 'BUTTERFLY',    // Mirrored wing shape
   AURORA = 'AURORA',          // Rainbow Gradient Wave

@@ -17,6 +17,7 @@ import { storageService } from './services/storageService';
 const DEFAULT_VISUALIZER_SETTINGS: VisualizerSettings = {
     color: '#8b5cf6', // Updated default to Violet to match theme
     lineThickness: 2,
+    roundness: 0,
     amplitude: 1.0,
     sensitivity: 0.85,
     backgroundImage: null,
@@ -71,10 +72,13 @@ const App: React.FC = () => {
   // 2. Visualizer Settings State (Central Source of Truth)
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode | null>(VisualizerMode.BARS);
   
-  // Initialize from storage or use defaults
+  // Initialize from storage or use defaults (Merging to ensure new props like roundness exist)
   const [visualizerSettings, setVisualizerSettings] = useState<VisualizerSettings>(() => {
       const saved = storageService.loadSettings();
-      return saved || DEFAULT_VISUALIZER_SETTINGS;
+      if (saved) {
+          return { ...DEFAULT_VISUALIZER_SETTINGS, ...saved };
+      }
+      return DEFAULT_VISUALIZER_SETTINGS;
   });
 
   // Save settings whenever they change

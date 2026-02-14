@@ -5,7 +5,7 @@ import * as Muxer from 'mp4-muxer';
 import { 
     drawBars, drawLine, drawCircle, 
     drawDualBars, drawRipple, 
-    drawPixel, drawEqualizer, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars,
+    drawPixel, drawRoundedBars, drawStarburst, drawButterfly, drawAurora, drawSpectrum, drawDotWave, drawLedBars,
     drawFluid, drawParticleSpectrum, drawJellyWave, drawPulseCircles, drawFlowerPetals
 } from '../utils/drawUtils';
 import { EffectRenderer } from '../utils/effectRenderer';
@@ -345,7 +345,7 @@ class RenderService {
             case VisualizerMode.DUAL_BARS: drawDualBars(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
             case VisualizerMode.RIPPLE: drawRipple(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
             case VisualizerMode.PIXEL: drawPixel(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
-            case VisualizerMode.EQUALIZER: drawEqualizer(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
+            case VisualizerMode.ROUNDED_BARS: drawRoundedBars(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
             case VisualizerMode.STARBURST: drawStarburst(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
             case VisualizerMode.BUTTERFLY: drawButterfly(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;
             case VisualizerMode.AURORA: drawAurora(context, dataArray, dataArray.length, w, h, scaledSettings, timestamp); break;

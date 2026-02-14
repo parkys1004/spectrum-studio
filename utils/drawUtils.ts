@@ -16,6 +16,36 @@ const createRainbowGradient = (ctx: CanvasRenderingContext2D | OffscreenCanvasRe
     return gradient;
 };
 
+// Helper: Robust Rounded Rect Fill (Supports Fallback)
+const fillRoundedRect = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+    // Clamp radius to half of width/height to avoid artifacts
+    const radius = Math.min(r, w / 2, h / 2);
+    
+    if (radius <= 0) {
+        ctx.fillRect(x, y, w, h);
+        return;
+    }
+
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        // Modern API
+        ctx.roundRect(x, y, w, h, radius);
+    } else {
+        // Fallback for older browsers
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, y + h - radius);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        ctx.lineTo(x + radius, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+    }
+    ctx.fill();
+};
+
 // 1. Classic Bars
 export const drawBars = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, data: Uint8Array, bufferLength: number, width: number, height: number, settings: VisualizerSettings, timestamp: number = 0) => {
   const gap = settings.lineThickness;
@@ -23,6 +53,8 @@ export const drawBars = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderin
   const barWidth = Math.max(2, ((width / meaningfulBufferLength) * 2.5) - gap); 
   let x = 0;
   const isRainbow = settings.color === 'rainbow';
+  
+  const baseRadius = settings.roundness ?? 0;
 
   for (let i = 0; i < bufferLength; i++) {
     const val = data[i];
@@ -41,7 +73,7 @@ export const drawBars = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderin
     }
     
     ctx.fillStyle = fillStyle;
-    ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+    fillRoundedRect(ctx, x, height - barHeight, barWidth, barHeight, baseRadius);
 
     x += barWidth + gap; 
     if (x > width) break;
@@ -137,6 +169,7 @@ export const drawDualBars = (ctx: CanvasRenderingContext2D | OffscreenCanvasRend
     const meaningfulBufferLength = Math.floor(bufferLength * 0.5);
     const barWidth = Math.max(2, ((width / meaningfulBufferLength) * 2) - gap); 
     const isRainbow = settings.color === 'rainbow';
+    const baseRadius = settings.roundness ?? 0;
     
     let x = 0;
     
@@ -152,9 +185,9 @@ export const drawDualBars = (ctx: CanvasRenderingContext2D | OffscreenCanvasRend
         }
 
         // Draw Top
-        ctx.fillRect(x, centerY - barHeight, barWidth, barHeight);
+        fillRoundedRect(ctx, x, centerY - barHeight, barWidth, barHeight, baseRadius);
         // Draw Bottom
-        ctx.fillRect(x, centerY, barWidth, barHeight);
+        fillRoundedRect(ctx, x, centerY, barWidth, barHeight, baseRadius);
         
         x += barWidth + gap;
     }
@@ -230,43 +263,58 @@ export const drawPixel = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderi
     ctx.globalAlpha = 1.0;
 };
 
-// 8. Equalizer (Segmented LED)
-export const drawEqualizer = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, data: Uint8Array, bufferLength: number, width: number, height: number, settings: VisualizerSettings, timestamp: number = 0) => {
-    const gapX = settings.lineThickness;
-    const gapY = 2;
-    const meaningfulBufferLength = Math.floor(bufferLength * 0.6);
-    const barWidth = Math.max(4, ((width / meaningfulBufferLength) * 2.5) - gapX);
-    const isRainbow = settings.color === 'rainbow';
+// 8. Rounded Bars (Downsampled for thicker look, Pill shape)
+export const drawRoundedBars = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, data: Uint8Array, bufferLength: number, width: number, height: number, settings: VisualizerSettings, timestamp: number = 0) => {
+    // Map lineThickness (1-100) to Bar Count (Fewer bars = Thicker lines)
+    // Range: 120 bars (Thin) to 10 bars (Thick)
+    const t = Math.max(1, Math.min(100, settings.lineThickness));
+    const maxBars = 120;
+    const minBars = 10;
+    // As thickness goes up, bar count goes down
+    const barCount = Math.floor(maxBars - ((t - 1) / 99) * (maxBars - minBars));
     
-    const segmentHeight = 5;
+    // Calculate layout
+    const gapRatio = 0.15; // 15% of space is gaps
+    const totalGapWidth = width * gapRatio;
+    const singleGap = totalGapWidth / (barCount - 1);
+    const barWidth = (width - totalGapWidth) / barCount;
+    
+    // Focus on lower 70% of frequency spectrum (where most music action is)
+    const meaningfulLength = Math.floor(bufferLength * 0.7);
+    const step = Math.floor(meaningfulLength / barCount);
     
     let x = 0;
-    
-    for (let i = 0; i < meaningfulBufferLength; i++) {
-        const val = data[i];
-        const barHeight = (val / 255) * height * settings.amplitude;
-        const segments = Math.floor(barHeight / (segmentHeight + gapY));
-        
-        const rainbowHue = (i / meaningfulBufferLength) * 360;
+    const isRainbow = settings.color === 'rainbow';
 
-        for (let j = 0; j < segments; j++) {
-            const y = height - ((j + 1) * (segmentHeight + gapY));
-            
-            if (isRainbow) {
-                // If rainbow, use spectrum horizontally
-                ctx.fillStyle = `hsl(${rainbowHue}, 100%, 60%)`;
-            } else {
-                // Color gradient simulation logic based on height
-                if (j > 30) ctx.fillStyle = '#ef4444'; // Red peak
-                else if (j > 20) ctx.fillStyle = '#f59e0b'; // Amber mid
-                else ctx.fillStyle = settings.color; // Base color
+    for (let i = 0; i < barCount; i++) {
+        // Average the frequency data for this chunk
+        let sum = 0;
+        let count = 0;
+        const startIdx = i * step;
+        for (let j = 0; j < step; j++) {
+            if (startIdx + j < data.length) {
+                sum += data[startIdx + j];
+                count++;
             }
-            
-            ctx.fillRect(x, y, barWidth, segmentHeight);
         }
-        
-        x += barWidth + gapX;
-        if (x > width) break;
+        const val = count > 0 ? sum / count : 0;
+
+        // Ensure minimum height matches width for a perfect circle when silent
+        const minHeight = barWidth;
+        const calculatedHeight = (val / 255) * height * settings.amplitude;
+        const barHeight = Math.max(minHeight, calculatedHeight); 
+
+        if (isRainbow) {
+            const hue = (i / barCount) * 360;
+            ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+        } else {
+            ctx.fillStyle = settings.color;
+        }
+
+        // Draw Pill Shape (Radius = Half Width forces full round ends)
+        fillRoundedRect(ctx, x, height - barHeight, barWidth, barHeight, barWidth / 2);
+
+        x += barWidth + singleGap;
     }
 };
 
@@ -583,6 +631,7 @@ export const drawLedBars = (ctx: CanvasRenderingContext2D | OffscreenCanvasRende
     const barWidth = Math.max(4, (width / meaningfulLength) - gapX);
     const segmentHeight = 6;
     const gapY = 2;
+    const baseRadius = settings.roundness ?? 2; // Default to 2 if not set
 
     let x = (width - (meaningfulLength * (barWidth + gapX))) / 2;
     if (x < 0) x = 0;
@@ -603,23 +652,7 @@ export const drawLedBars = (ctx: CanvasRenderingContext2D | OffscreenCanvasRende
 
         for (let j = 0; j < numSegments; j++) {
             const y = height - (j * (segmentHeight + gapY)) - 10; // padding bottom
-            
-            // Manual Rounded Rect
-            ctx.beginPath();
-            const r = 2;
-            const bw = barWidth;
-            const sh = segmentHeight;
-            
-            ctx.moveTo(x + r, y - sh);
-            ctx.lineTo(x + bw - r, y - sh);
-            ctx.quadraticCurveTo(x + bw, y - sh, x + bw, y - sh + r);
-            ctx.lineTo(x + bw, y - r);
-            ctx.quadraticCurveTo(x + bw, y, x + bw - r, y);
-            ctx.lineTo(x + r, y);
-            ctx.quadraticCurveTo(x, y, x, y - r);
-            ctx.lineTo(x, y - sh + r);
-            ctx.quadraticCurveTo(x, y - sh, x + r, y - sh);
-            ctx.fill();
+            fillRoundedRect(ctx, x, y - segmentHeight, barWidth, segmentHeight, baseRadius);
         }
         
         x += barWidth + gapX;

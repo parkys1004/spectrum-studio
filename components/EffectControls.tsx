@@ -79,9 +79,18 @@ const EffectControls: React.FC<EffectControlsProps> = ({
             label="선 두께"
             value={visualizerSettings.lineThickness}
             min={1}
-            max={20}
+            max={100}
             step={1}
             onChange={(v) => handleVisualChange('lineThickness', v)}
+            suffix="px"
+         />
+         <PropertyRow
+            label="테두리 둥글기"
+            value={visualizerSettings.roundness ?? 0}
+            min={0}
+            max={30}
+            step={1}
+            onChange={(v) => handleVisualChange('roundness', v)}
             suffix="px"
          />
          <PropertyRow
@@ -241,6 +250,7 @@ const EffectControls: React.FC<EffectControlsProps> = ({
               onVisualizerChange({ 
                   color: '#8b5cf6', 
                   lineThickness: 2, 
+                  roundness: 0,
                   amplitude: 1.0, 
                   sensitivity: 0.85,
                   backgroundImage: null,
