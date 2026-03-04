@@ -71,6 +71,10 @@ export const useExporter = (
 
     // 2. Ask for File Save Location (Direct-to-Disk)
     let fileHandle: any = null;
+    
+    // Check if we are in an iframe (AI Studio preview)
+    const isIframe = window.self !== window.top;
+
     if ("showSaveFilePicker" in window) {
       try {
         fileHandle = await (window as any).showSaveFilePicker({
@@ -85,8 +89,19 @@ export const useExporter = (
       } catch (err: any) {
         // User cancelled the picker
         if (err.name === "AbortError") return;
+        
+        if (err.name === "SecurityError" || isIframe) {
+          alert("현재 미리보기 화면에서는 보안 정책상 하드디스크 직접 저장 기능을 사용할 수 없습니다.\n\n우측 상단의 '새 탭에서 열기' 버튼(또는 제공된 App URL)을 눌러 새 창에서 앱을 연 뒤 다시 시도해주세요.");
+          return; // Stop export to prevent memory crash for long videos
+        }
         console.warn("File picker failed, falling back to in-memory", err);
       }
+    } else if (isIframe) {
+       alert("현재 미리보기 화면에서는 보안 정책상 하드디스크 직접 저장 기능을 사용할 수 없습니다.\n\n우측 상단의 '새 탭에서 열기' 버튼(또는 제공된 App URL)을 눌러 새 창에서 앱을 연 뒤 다시 시도해주세요.");
+       return;
+    } else {
+       const proceed = window.confirm("현재 브라우저(Safari/Firefox 등)는 하드디스크 직접 저장 기능을 지원하지 않습니다.\n\n메모리 렌더링 방식으로 진행되며, 30분 이상의 긴 영상은 메모리 부족으로 튕길 수 있습니다. 계속 진행하시겠습니까?");
+       if (!proceed) return;
     }
 
     // 3. Close Modal & Start Process
