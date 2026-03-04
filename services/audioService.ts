@@ -23,6 +23,9 @@ class AudioService {
 
   // Cache decoded buffers by Track ID to prevent expensive re-decoding
   private bufferCache: Map<string, AudioBuffer> = new Map();
+  
+  // Reusable context for decoding to prevent hitting browser limits
+  private decodeContext: OfflineAudioContext | null = null;
 
   init(audioElement: HTMLAudioElement) {
     if (this.audioContext) {
@@ -126,13 +129,14 @@ class AudioService {
         const arrayBuffer = await file.arrayBuffer();
         
         // 2. Decode using OfflineAudioContext (Better stability for batch processing)
-        // Using OfflineAudioContext avoids the "max number of AudioContexts" limit
-        // and doesn't require hardware access permissions.
-        const offlineCtx = new OfflineAudioContext(1, 1, 48000);
+        // Using a shared OfflineAudioContext avoids the "max number of AudioContexts" limit
+        if (!this.decodeContext) {
+            this.decodeContext = new OfflineAudioContext(1, 1, 48000);
+        }
         
         // Wrap in a promise with a timeout to prevent infinite hangs
         const decodePromise = new Promise<AudioBuffer>((resolve, reject) => {
-             offlineCtx.decodeAudioData(
+             this.decodeContext!.decodeAudioData(
                  arrayBuffer,
                  (buffer) => resolve(buffer),
                  (err) => reject(err)
@@ -166,14 +170,17 @@ class AudioService {
   }
 
   // New: Analyze full audio buffer to determine mood
-  async analyzeAudio(file: File): Promise<{ mood: 'Chill' | 'Upbeat' | 'Powerful', color: string }> {
-    try {
-        const arrayBuffer = await file.arrayBuffer();
-        
-        const offlineCtx = new OfflineAudioContext(1, 1, 44100);
-        const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
-             offlineCtx.decodeAudioData(arrayBuffer, resolve, reject);
-        });
+    async analyzeAudio(file: File): Promise<{ mood: 'Chill' | 'Upbeat' | 'Powerful', color: string }> {
+      try {
+          const arrayBuffer = await file.arrayBuffer();
+          
+          if (!this.decodeContext) {
+              this.decodeContext = new OfflineAudioContext(1, 1, 44100);
+          }
+          
+          const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
+               this.decodeContext!.decodeAudioData(arrayBuffer, resolve, reject);
+          });
         
         // 2. Get Raw PCM Data (first 30 seconds to save performance)
         const rawData = audioBuffer.getChannelData(0); 

@@ -177,6 +177,27 @@ export const useLibrary = () => {
       }
   }, []);
 
+  const handleDeleteSelectedTracks = useCallback(async () => {
+      try {
+          const idsToDelete = Array.from(selectedTrackIds);
+          
+          // 1. Remove from Storage
+          await Promise.all(idsToDelete.map(id => storageService.deleteFile(id)));
+          
+          // 2. Remove from State
+          setTracks(prev => prev.filter(t => !selectedTrackIds.has(t.id)));
+
+          // 3. Remove from Selection
+          setSelectedTrackIds(new Set());
+          
+          // 4. Clean up cache in audioService
+          idsToDelete.forEach(id => audioService.clearCache(id));
+      } catch (e) {
+          console.error("Failed to delete selected tracks:", e);
+          alert("선택한 파일 삭제 중 오류가 발생했습니다.");
+      }
+  }, [selectedTrackIds]);
+
   const handleClearLibrary = useCallback(async () => {
       try {
           // 1. Clear Storage
@@ -227,6 +248,7 @@ export const useLibrary = () => {
     handleReorderTrack,
     handleDuplicateTrack,
     handleDeleteTrack,
+    handleDeleteSelectedTracks,
     handleClearLibrary,
     toggleTrackSelection,
     toggleSelectAll

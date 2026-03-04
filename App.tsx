@@ -68,6 +68,7 @@ const App: React.FC = () => {
     handleReorderTrack,
     handleDuplicateTrack,
     handleDeleteTrack,
+    handleDeleteSelectedTracks,
     handleClearLibrary,
     toggleTrackSelection,
     toggleSelectAll,
@@ -97,6 +98,7 @@ const App: React.FC = () => {
 
   // UI State
   const [trackToDelete, setTrackToDelete] = useState<string | null>(null);
+  const [showDeleteSelectedModal, setShowDeleteSelectedModal] = useState(false);
   const [showClearLibraryModal, setShowClearLibraryModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
 
@@ -333,6 +335,48 @@ const App: React.FC = () => {
         </div>
       </Modal>
 
+      {/* Delete Selected Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteSelectedModal}
+        onClose={() => setShowDeleteSelectedModal(false)}
+        onConfirm={() => {
+          handleDeleteSelectedTracks();
+          setShowDeleteSelectedModal(false);
+        }}
+        title="선택한 파일 삭제"
+        confirmText="삭제"
+      >
+        <div className="text-center py-2">
+          <div className="w-16 h-16 bg-app-bg text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-neu-btn">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </div>
+          <p className="text-lg font-bold text-app-text mb-2 px-4 truncate">
+            선택한 {selectedTrackIds.size}개의 파일
+          </p>
+          <p className="text-app-textMuted leading-relaxed">
+            정말 이 파일들을 삭제하시겠습니까?
+            <br />
+            라이브러리 목록에서만 제거되며,{" "}
+            <span className="text-app-text font-bold">
+              원본 파일은 삭제되지 않습니다.
+            </span>
+            <br />
+            <span className="text-xs text-red-400 mt-2 block font-bold tracking-wide">
+              이 작업은 되돌릴 수 없습니다.
+            </span>
+          </p>
+        </div>
+      </Modal>
+
       {/* Clear Library Confirmation Modal */}
       <Modal
         isOpen={showClearLibraryModal}
@@ -465,6 +509,7 @@ const App: React.FC = () => {
               onReorderTrack={handleReorderTrack}
               onDuplicateTrack={handleDuplicateTrack}
               onDeleteTrack={setTrackToDelete}
+              onDeleteSelectedTracks={() => setShowDeleteSelectedModal(true)}
               onClearLibrary={() => setShowClearLibraryModal(true)}
               onToggleSelection={toggleTrackSelection}
               onToggleSelectAll={toggleSelectAll}

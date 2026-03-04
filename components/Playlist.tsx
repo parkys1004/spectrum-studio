@@ -10,6 +10,7 @@ interface PlaylistProps {
   onReorderTrack: (sourceId: string, targetId: string) => void;
   onDuplicateTrack: (trackId: string) => void;
   onDeleteTrack: (trackId: string) => void;
+  onDeleteSelectedTracks: () => void;
   onClearLibrary: () => void;
   onToggleSelection: (trackId: string) => void;
   onToggleSelectAll: () => void;
@@ -26,6 +27,7 @@ const Playlist: React.FC<PlaylistProps> = ({
     onReorderTrack,
     onDuplicateTrack,
     onDeleteTrack,
+    onDeleteSelectedTracks,
     onClearLibrary,
     onToggleSelection,
     onToggleSelectAll,
@@ -101,12 +103,21 @@ const Playlist: React.FC<PlaylistProps> = ({
             label="타임라인 복사"
             icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2" ry="2"/><path d="M12 12v6"/><path d="M12 18l3-3"/><path d="M12 18l-3-3"/></svg>}
         />
-        <IconButton 
-            onClick={onClearLibrary}
-            label="전체 초기화"
-            variant="danger"
-            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>}
-        />
+        {selectedTrackIds.size > 0 ? (
+            <IconButton 
+                onClick={onDeleteSelectedTracks}
+                label={`선택 삭제 (${selectedTrackIds.size})`}
+                variant="danger"
+                icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>}
+            />
+        ) : (
+            <IconButton 
+                onClick={onClearLibrary}
+                label="전체 초기화"
+                variant="danger"
+                icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>}
+            />
+        )}
         <input 
           type="file" 
           ref={fileInputRef} 

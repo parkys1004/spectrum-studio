@@ -245,16 +245,22 @@ class RenderService {
       );
     }
 
+    // 4. Setup Visualization Environment
+    const analyser = offlineCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = visualizerSettings.sensitivity;
+    
+    // Connect analyser to destination so audio flows through it to the final rendered buffer
+    analyser.connect(offlineCtx.destination);
+
     let offset = 0;
     validBuffers.forEach((buf) => {
       const source = offlineCtx.createBufferSource();
       source.buffer = buf;
-      source.connect(offlineCtx.destination);
+      source.connect(analyser); // Connect source to analyser
       source.start(offset);
       offset += buf.duration;
     });
-
-    // 3. Setup Muxer & Encoders (FORCE IN-MEMORY)
     let width = 1920;
     let height = 1080;
     let bitrate = 6_000_000;
@@ -419,19 +425,7 @@ class RenderService {
       });
     }
 
-    // 4. Setup Visualization Environment
-    const analyser = offlineCtx.createAnalyser();
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = visualizerSettings.sensitivity;
-
-    offset = 0;
-    validBuffers.forEach((buf) => {
-      const source = offlineCtx.createBufferSource();
-      source.buffer = buf;
-      source.connect(analyser);
-      source.start(offset);
-      offset += buf.duration;
-    });
+    // 3. Setup Muxer & Encoders (FORCE IN-MEMORY)
 
     const canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext("2d", {
@@ -705,211 +699,227 @@ class RenderService {
 
     try {
       const processFrame = async (i: number) => {
-        if (signal.aborted || this.hasEncoderError) return;
-
-        await this.waitForQueue(videoEncoder, 60);
-
-        if (i % 30 === 0) {
-          const elapsed = (performance.now() - startTime) / 1000;
-          let speedInfo = "";
-          if (elapsed > 1.0) {
-            const processedDuration = i / fps;
-            const speed = (processedDuration / elapsed).toFixed(1);
-            speedInfo = ` (🚀 x${speed})`;
+        try {
+          if (signal.aborted || this.hasEncoderError) {
+             try { offlineCtx.resume(); } catch(e) {}
+             return;
           }
-          const percent = Math.round((i / totalFrames) * 100);
-          onProgress(i, totalFrames, `렌더링 중... ${percent}%${speedInfo}`);
-          await new Promise((r) => setTimeout(r, 0));
-        }
 
-        const timeSeconds = i / fps;
-        const timeMs = timeSeconds * 1000;
+          await this.waitForQueue(videoEncoder, 60);
 
-        if (
-          visualizerMode === VisualizerMode.WAVE ||
-          visualizerMode === VisualizerMode.FLUID ||
-          visualizerMode === VisualizerMode.JELLY_WAVE
-        ) {
-          analyser.getByteTimeDomainData(dataArray);
-        } else {
-          analyser.getByteFrequencyData(dataArray);
-        }
+          if (i % 30 === 0) {
+            const elapsed = (performance.now() - startTime) / 1000;
+            let speedInfo = "";
+            if (elapsed > 1.0) {
+              const processedDuration = i / fps;
+              const speed = (processedDuration / elapsed).toFixed(1);
+              speedInfo = ` (🚀 x${speed})`;
+            }
+            const percent = Math.round((i / totalFrames) * 100);
+            onProgress(i, totalFrames, `렌더링 중... ${percent}%${speedInfo}`);
+            await new Promise((r) => setTimeout(r, 0));
+          }
 
-        let bassEnergy = 0;
-        if (
-          visualizerMode !== VisualizerMode.WAVE &&
-          visualizerMode !== VisualizerMode.FLUID &&
-          visualizerMode !== VisualizerMode.JELLY_WAVE
-        ) {
-          bassEnergy =
-            (dataArray[0] +
-              dataArray[1] +
-              dataArray[2] +
-              dataArray[3] +
-              dataArray[4]) /
-            5;
-        } else {
-          let sum = 0;
-          const step = 4;
-          for (let k = 0; k < dataArray.length; k += step)
-            sum += Math.abs(dataArray[k] - 128);
-          bassEnergy = (sum / (dataArray.length / step)) * 2;
-        }
+          const timeSeconds = i / fps;
+          const timeMs = timeSeconds * 1000;
 
-        // Lowered threshold for export as well
-        const isBeat = bassEnergy > 140;
-
-        const fixedDeltaTime = 1.0 / fps;
-        effectRenderer.update(
-          isBeat,
-          bassEnergy,
-          visualizerSettings.effectParams,
-          fixedDeltaTime,
-        );
-
-        // Clear Canvas for safety
-        ctx.fillStyle = "#000000";
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.save();
-        if (visualizerSettings.effects.shake && isBeat) {
-          const s = visualizerSettings.effectParams.shakeStrength || 1;
-          const shakeRange = 30 * scaleFactor; // Matched Visualizer.tsx range
-          ctx.translate(
-            (Math.random() - 0.5) * shakeRange * s,
-            (Math.random() - 0.5) * shakeRange * s,
-          );
-        }
-        if (visualizerSettings.effects.pulse) {
-          const zoom = 1.0 + (bassEnergy / 255) * 0.1;
-          ctx.translate(width / 2, height / 2);
-          ctx.scale(zoom, zoom);
-          ctx.translate(-width / 2, -height / 2);
-        }
-
-        // Background
-        if (bgBitmap) {
-          const r = bgBitmap.width / bgBitmap.height;
-          const cr = width / height;
-          let dw, dh, ox, oy;
-          if (cr > r) {
-            dw = width;
-            dh = width / r;
-            ox = 0;
-            oy = (height - dh) / 2;
+          if (
+            visualizerMode === VisualizerMode.WAVE ||
+            visualizerMode === VisualizerMode.FLUID ||
+            visualizerMode === VisualizerMode.JELLY_WAVE
+          ) {
+            analyser.getByteTimeDomainData(dataArray);
           } else {
-            dw = height * r;
-            dh = height;
-            ox = (width - dw) / 2;
-            oy = 0;
+            analyser.getByteFrequencyData(dataArray);
           }
-          ctx.drawImage(bgBitmap, ox, oy, dw, dh);
-          // Dark overlay removed for cleaner background
-        } else {
-          // Explicit background if no image
-          ctx.fillStyle = "#111111";
+
+          let bassEnergy = 0;
+          if (
+            visualizerMode !== VisualizerMode.WAVE &&
+            visualizerMode !== VisualizerMode.FLUID &&
+            visualizerMode !== VisualizerMode.JELLY_WAVE
+          ) {
+            bassEnergy =
+              (dataArray[0] +
+                dataArray[1] +
+                dataArray[2] +
+                dataArray[3] +
+                dataArray[4]) /
+              5;
+          } else {
+            let sum = 0;
+            const step = 4;
+            for (let k = 0; k < dataArray.length; k += step)
+              sum += Math.abs(dataArray[k] - 128);
+            bassEnergy = (sum / (dataArray.length / step)) * 2;
+          }
+
+          // Lowered threshold for export as well
+          const isBeat = bassEnergy > 140;
+
+          const fixedDeltaTime = 1.0 / fps;
+          effectRenderer.update(
+            isBeat,
+            bassEnergy,
+            visualizerSettings.effectParams,
+            fixedDeltaTime,
+          );
+
+          // Clear Canvas for safety
+          ctx.fillStyle = "#000000";
           ctx.fillRect(0, 0, width, height);
-        }
-
-        // Spectrum
-        ctx.save();
-        ctx.translate(width / 2, height / 2);
-        ctx.translate(scaledSettings.positionX, scaledSettings.positionY);
-        ctx.scale(scaledSettings.scale, scaledSettings.scale);
-
-        if (visualizerSettings.effects.mirror) {
-          ctx.save();
-          ctx.translate(0, -height / 2);
-          renderSpectrum(ctx, width / 2, height, timeMs);
-          ctx.restore();
 
           ctx.save();
-          ctx.scale(-1, 1);
-          ctx.translate(0, -height / 2);
-          ctx.globalCompositeOperation = "screen";
-          renderSpectrum(ctx, width / 2, height, timeMs);
-          ctx.restore();
-        } else {
-          ctx.translate(-width / 2, -height / 2);
-          renderSpectrum(ctx, width, height, timeMs);
-        }
-        ctx.restore();
-
-        // Logo
-        if (logoBitmap) {
-          const base = Math.min(width, height) * 0.15;
-          const dw = base * visualizerSettings.logoScale;
-          const dh = dw / (logoBitmap.width / logoBitmap.height);
-          const x = (width - dw) * (visualizerSettings.logoX / 100);
-          const y = (height - dh) * (visualizerSettings.logoY / 100);
-          ctx.globalAlpha = 0.9;
-          ctx.drawImage(logoBitmap, x, y, dw, dh);
-          ctx.globalAlpha = 1.0;
-        }
-
-        // Sticker
-        let sImg = gifController.isLoaded
-          ? (gifController.getFrame(timeMs) as ImageBitmap)
-          : stickerBitmap;
-        if (sImg) {
-          const base = Math.min(width, height) * 0.15;
-          const dw = base * visualizerSettings.stickerScale;
-          const dh = dw / (sImg.width / sImg.height);
-          const x = (width - dw) * (visualizerSettings.stickerX / 100);
-          const y = (height - dh) * (visualizerSettings.stickerY / 100);
-          ctx.drawImage(sImg, x, y, dw, dh);
-        }
-
-        effectRenderer.draw(ctx, visualizerSettings.effects);
-
-        if (visualizerSettings.effects.glitch && isBeat) {
-          const glStr = visualizerSettings.effectParams.glitchStrength || 1.0;
-          const sliceHeight = (Math.random() * 50 + 10) * scaleFactor;
-          const sliceY = Math.random() * height;
-          const offset = (Math.random() - 0.5) * 40 * glStr * scaleFactor;
-          try {
-            ctx.drawImage(
-              canvas,
-              0,
-              sliceY,
-              width,
-              sliceHeight,
-              offset,
-              sliceY,
-              width,
-              sliceHeight,
+          if (visualizerSettings.effects.shake && isBeat) {
+            const s = visualizerSettings.effectParams.shakeStrength || 1;
+            const shakeRange = 30 * scaleFactor; // Matched Visualizer.tsx range
+            ctx.translate(
+              (Math.random() - 0.5) * shakeRange * s,
+              (Math.random() - 0.5) * shakeRange * s,
             );
-            ctx.fillStyle = `rgba(255, 0, 0, ${0.2 * glStr})`;
-            ctx.fillRect(0, sliceY, width, 5);
+          }
+          if (visualizerSettings.effects.pulse) {
+            const zoom = 1.0 + (bassEnergy / 255) * 0.1;
+            ctx.translate(width / 2, height / 2);
+            ctx.scale(zoom, zoom);
+            ctx.translate(-width / 2, -height / 2);
+          }
+
+          // Background
+          if (bgBitmap) {
+            const r = bgBitmap.width / bgBitmap.height;
+            const cr = width / height;
+            let dw, dh, ox, oy;
+            if (cr > r) {
+              dw = width;
+              dh = width / r;
+              ox = 0;
+              oy = (height - dh) / 2;
+            } else {
+              dw = height * r;
+              dh = height;
+              ox = (width - dw) / 2;
+              oy = 0;
+            }
+            ctx.drawImage(bgBitmap, ox, oy, dw, dh);
+            // Dark overlay removed for cleaner background
+          } else {
+            // Explicit background if no image
+            ctx.fillStyle = "#111111";
+            ctx.fillRect(0, 0, width, height);
+          }
+
+          // Spectrum
+          ctx.save();
+          ctx.translate(width / 2, height / 2);
+          ctx.translate(scaledSettings.positionX, scaledSettings.positionY);
+          ctx.scale(scaledSettings.scale, scaledSettings.scale);
+
+          if (visualizerSettings.effects.mirror) {
+            ctx.save();
+            ctx.translate(0, -height / 2);
+            renderSpectrum(ctx, width / 2, height, timeMs);
+            ctx.restore();
+
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.translate(0, -height / 2);
+            ctx.globalCompositeOperation = "screen";
+            renderSpectrum(ctx, width / 2, height, timeMs);
+            ctx.restore();
+          } else {
+            ctx.translate(-width / 2, -height / 2);
+            renderSpectrum(ctx, width, height, timeMs);
+          }
+          ctx.restore();
+
+          // Logo
+          if (logoBitmap) {
+            const base = Math.min(width, height) * 0.15;
+            const dw = base * visualizerSettings.logoScale;
+            const dh = dw / (logoBitmap.width / logoBitmap.height);
+            const x = (width - dw) * (visualizerSettings.logoX / 100);
+            const y = (height - dh) * (visualizerSettings.logoY / 100);
+            ctx.globalAlpha = 0.9;
+            ctx.drawImage(logoBitmap, x, y, dw, dh);
+            ctx.globalAlpha = 1.0;
+          }
+
+          // Sticker
+          let sImg = gifController.isLoaded
+            ? (gifController.getFrame(timeMs) as ImageBitmap)
+            : stickerBitmap;
+          if (sImg) {
+            const base = Math.min(width, height) * 0.15;
+            const dw = base * visualizerSettings.stickerScale;
+            const dh = dw / (sImg.width / sImg.height);
+            const x = (width - dw) * (visualizerSettings.stickerX / 100);
+            const y = (height - dh) * (visualizerSettings.stickerY / 100);
+            ctx.drawImage(sImg, x, y, dw, dh);
+          }
+
+          effectRenderer.draw(ctx, visualizerSettings.effects);
+
+          if (visualizerSettings.effects.glitch && isBeat) {
+            const glStr = visualizerSettings.effectParams.glitchStrength || 1.0;
+            const sliceHeight = (Math.random() * 50 + 10) * scaleFactor;
+            const sliceY = Math.random() * height;
+            const offset = (Math.random() - 0.5) * 40 * glStr * scaleFactor;
+            try {
+              ctx.drawImage(
+                canvas,
+                0,
+                sliceY,
+                width,
+                sliceHeight,
+                offset,
+                sliceY,
+                width,
+                sliceHeight,
+              );
+              ctx.fillStyle = `rgba(255, 0, 0, ${0.2 * glStr})`;
+              ctx.fillRect(0, sliceY, width, 5);
+            } catch (e) {}
+          }
+
+          ctx.restore();
+
+          const frame = new VideoFrame(canvas, {
+            timestamp: i * (1_000_000 / fps),
+            duration: 1_000_000 / fps,
+          });
+
+          try {
+            const keyFrame = i % 60 === 0;
+            videoEncoder.encode(frame, { keyFrame });
+          } catch (e) {
+            console.error("Frame encoding failed", e);
+          }
+          frame.close();
+
+          if (i + 1 < totalFrames) {
+            const nextTime = (i + 1) / fps;
+            if (nextTime < totalDuration) {
+              offlineCtx
+                .suspend(nextTime)
+                .then(() => processFrame(i + 1))
+                .catch((err) => {
+                   console.warn("Suspend scheduling failed:", err);
+                   try { offlineCtx.resume(); } catch(e){}
+                });
+            } else {
+               // We reached the end, no need to suspend anymore
+            }
+          }
+
+          try {
+            offlineCtx.resume();
           } catch (e) {}
+        } catch (err) {
+          console.error("Fatal error in processFrame:", err);
+          this.hasEncoderError = true;
+          try { offlineCtx.resume(); } catch(e){}
         }
-
-        ctx.restore();
-
-        const frame = new VideoFrame(canvas, {
-          timestamp: i * (1_000_000 / fps),
-          duration: 1_000_000 / fps,
-        });
-
-        try {
-          const keyFrame = i % 60 === 0;
-          videoEncoder.encode(frame, { keyFrame });
-        } catch (e) {
-          console.error("Frame encoding failed", e);
-        }
-        frame.close();
-
-        if (i + 1 < totalFrames) {
-          const nextTime = (i + 1) / fps;
-          offlineCtx
-            .suspend(nextTime)
-            .then(() => processFrame(i + 1))
-            .catch((err) => console.warn("Suspend scheduling failed:", err));
-        }
-
-        try {
-          offlineCtx.resume();
-        } catch (e) {}
       };
 
       // --- Start Rendering ---
