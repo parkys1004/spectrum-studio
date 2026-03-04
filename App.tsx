@@ -179,7 +179,7 @@ const App: React.FC = () => {
         timestamp = `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
       }
 
-      timelineText += `${timestamp} - ${track.name}\n`;
+      timelineText += `${timestamp} ${track.name}\n`;
 
       currentSeconds += duration || 0;
     }

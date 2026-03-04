@@ -69,16 +69,16 @@ export const useExporter = (
       return;
     }
 
-    // 2. Ask for File Save Location (Direct-to-Disk)
+    // 2. Ask for File Save Location (Direct-to-Disk or OPFS)
     let fileHandle: any = null;
-    
-    // Check if we are in an iframe (AI Studio preview)
-    const isIframe = window.self !== window.top;
+    let useOPFS = false;
+    let useInMemoryFallback = false;
+    const filename = `SpectrumStudio_Export_${Date.now()}.${exportFormat}`;
 
     if ("showSaveFilePicker" in window) {
       try {
         fileHandle = await (window as any).showSaveFilePicker({
-          suggestedName: `SpectrumStudio_Export_${Date.now()}.${exportFormat}`,
+          suggestedName: filename,
           types: [
             {
               description: exportFormat === "mp4" ? "MP4 Video File" : "WebM Video File",
@@ -89,18 +89,32 @@ export const useExporter = (
       } catch (err: any) {
         // User cancelled the picker
         if (err.name === "AbortError") return;
-        
-        if (err.name === "SecurityError" || isIframe) {
-          alert("현재 미리보기 화면에서는 보안 정책상 하드디스크 직접 저장 기능을 사용할 수 없습니다.\n\n우측 상단의 '새 탭에서 열기' 버튼(또는 제공된 App URL)을 눌러 새 창에서 앱을 연 뒤 다시 시도해주세요.");
-          return; // Stop export to prevent memory crash for long videos
-        }
-        console.warn("File picker failed, falling back to in-memory", err);
+        console.warn("File picker failed:", err);
       }
-    } else if (isIframe) {
-       alert("현재 미리보기 화면에서는 보안 정책상 하드디스크 직접 저장 기능을 사용할 수 없습니다.\n\n우측 상단의 '새 탭에서 열기' 버튼(또는 제공된 App URL)을 눌러 새 창에서 앱을 연 뒤 다시 시도해주세요.");
-       return;
-    } else {
-       const proceed = window.confirm("현재 브라우저(Safari/Firefox 등)는 하드디스크 직접 저장 기능을 지원하지 않습니다.\n\n메모리 렌더링 방식으로 진행되며, 30분 이상의 긴 영상은 메모리 부족으로 튕길 수 있습니다. 계속 진행하시겠습니까?");
+    }
+
+    // Fallback to OPFS (Origin Private File System) if File Picker failed (e.g. in iframe)
+    if (!fileHandle && navigator.storage && navigator.storage.getDirectory) {
+      try {
+        const dir = await navigator.storage.getDirectory();
+        fileHandle = await dir.getFileHandle(filename, { create: true });
+        useOPFS = true;
+        console.log("Using OPFS for direct-to-disk export");
+      } catch (err) {
+        console.warn("OPFS failed:", err);
+      }
+    }
+
+    if (!fileHandle) {
+       useInMemoryFallback = true;
+    }
+
+    if (useInMemoryFallback) {
+       const proceed = window.confirm(
+         "현재 환경(미리보기 창 또는 브라우저 호환성)에서는 하드디스크 직접 저장 기능을 사용할 수 없습니다.\n\n" +
+         "대신 '메모리 렌더링' 방식으로 계속 진행하시겠습니까?\n" +
+         "(주의: 30분 이상의 긴 영상은 브라우저 메모리 부족으로 렌더링 도중 튕길 수 있습니다.)"
+       );
        if (!proceed) return;
     }
 
@@ -126,8 +140,27 @@ export const useExporter = (
         triggerAutoDownload(result.url, result.filename);
         setTimeout(() => URL.revokeObjectURL(result.url), 60000);
       } else if (fileHandle) {
-        // Direct-to-disk completed successfully
-        alert("파일 저장이 완료되었습니다.");
+        if (useOPFS) {
+          // Extract file from OPFS and trigger download
+          setExportStats({ current: 1, total: 1, phase: "파일 다운로드 준비 중..." });
+          const file = await fileHandle.getFile();
+          const url = URL.createObjectURL(file);
+          triggerAutoDownload(url, filename);
+          
+          // Cleanup OPFS after a delay to ensure download starts
+          setTimeout(async () => {
+            URL.revokeObjectURL(url);
+            try {
+              const dir = await navigator.storage.getDirectory();
+              await dir.removeEntry(filename);
+            } catch (e) {
+              console.warn("Failed to cleanup OPFS file", e);
+            }
+          }, 60000);
+        } else {
+          // Direct-to-disk via showSaveFilePicker completed successfully
+          alert("파일 저장이 완료되었습니다.");
+        }
       }
     } catch (e: any) {
       console.error("Export Fatal Error:", e);
