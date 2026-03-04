@@ -69,12 +69,31 @@ export const useExporter = (
       return;
     }
 
-    // 2. Close Modal & Start Process
+    // 2. Ask for File Save Location (Direct-to-Disk)
+    let fileHandle: any = null;
+    if ("showSaveFilePicker" in window) {
+      try {
+        fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: `SpectrumStudio_Export_${Date.now()}.${exportFormat}`,
+          types: [
+            {
+              description: exportFormat === "mp4" ? "MP4 Video File" : "WebM Video File",
+              accept: exportFormat === "mp4" ? { "video/mp4": [".mp4"] } : { "video/webm": [".webm"] },
+            },
+          ],
+        });
+      } catch (err: any) {
+        // User cancelled the picker
+        if (err.name === "AbortError") return;
+        console.warn("File picker failed, falling back to in-memory", err);
+      }
+    }
+
+    // 3. Close Modal & Start Process
     setShowExportModal(false);
     setIsExporting(true);
 
     try {
-      // ALWAYS Render to Memory first. This avoids 0-byte file issues caused by stream interruptions.
       const result = await renderService.renderPlaylist(
         tracks,
         visualizerSettings,
@@ -84,45 +103,16 @@ export const useExporter = (
         (current, total, phase) => {
           setExportStats({ current, total, phase });
         },
+        fileHandle
       );
 
       if (result && result.url) {
-        // Once rendering is fully complete and successful, trigger the download/save.
-        // Try modern Save File Picker first
-        if ("showSaveFilePicker" in window) {
-          try {
-            const handle = await (window as any).showSaveFilePicker({
-              suggestedName: result.filename,
-              types: [
-                {
-                  description:
-                    exportFormat === "mp4"
-                      ? "MP4 Video File"
-                      : "WebM Video File",
-                  accept:
-                    exportFormat === "mp4"
-                      ? { "video/mp4": [".mp4"] }
-                      : { "video/webm": [".webm"] },
-                },
-              ],
-            });
-            const writable = await handle.createWritable();
-            const response = await fetch(result.url);
-            await response.body?.pipeTo(writable);
-            alert("파일 저장이 완료되었습니다.");
-          } catch (err: any) {
-            if (err.name !== "AbortError") {
-              // Fallback to auto download if picker fails or isn't supported in context
-              triggerAutoDownload(result.url, result.filename);
-            }
-          }
-        } else {
-          // Fallback for browsers without File System Access API
-          triggerAutoDownload(result.url, result.filename);
-        }
-
-        // Cleanup URL after a minute
+        // Fallback for browsers without File System Access API (in-memory render)
+        triggerAutoDownload(result.url, result.filename);
         setTimeout(() => URL.revokeObjectURL(result.url), 60000);
+      } else if (fileHandle) {
+        // Direct-to-disk completed successfully
+        alert("파일 저장이 완료되었습니다.");
       }
     } catch (e: any) {
       console.error("Export Fatal Error:", e);

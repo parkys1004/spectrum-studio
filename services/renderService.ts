@@ -137,6 +137,7 @@ class RenderService {
     resolution: "1080p" | "720p" | "1080p_vertical" | "720p_vertical" | "1080p_square",
     format: "mp4" | "webm" = "mp4",
     onProgress: (current: number, total: number, phase: string) => void,
+    fileHandle?: any
   ): Promise<{ url: string; filename: string } | null> {
     this.abortController = new AbortController();
     this.hasEncoderError = false;
@@ -230,9 +231,9 @@ class RenderService {
     const sampleRate = 44100;
     const frameCount = Math.ceil(sampleRate * totalDuration);
 
-    if (totalDuration > 10800) {
+    if (totalDuration > 43200) {
       throw new Error(
-        "총 재생 시간이 너무 깁니다. 3시간 이내로 트랙을 구성해주세요.",
+        "총 재생 시간이 너무 깁니다. 12시간 이내로 트랙을 구성해주세요.",
       );
     }
 
@@ -309,25 +310,37 @@ class RenderService {
     let muxer: any;
     let videoEncoder: VideoEncoderWithState;
     let audioEncoder: AudioEncoder;
+    let fileStream: any = null;
+
+    if (fileHandle) {
+      fileStream = await fileHandle.createWritable();
+    }
 
     if (format === "mp4") {
       let muxerTarget: any;
-      // Always use ArrayBufferTarget for stability
-      if (Muxer.ArrayBufferTarget) {
-        muxerTarget = new Muxer.ArrayBufferTarget();
+      
+      if (fileStream) {
+        if (Muxer.FileSystemWritableFileStreamTarget) {
+          muxerTarget = new Muxer.FileSystemWritableFileStreamTarget(fileStream);
+        } else {
+          muxerTarget = new (Muxer as any).FileSystemWritableFileStreamTarget(fileStream);
+        }
       } else {
-        muxerTarget = new (Muxer as any).ArrayBufferTarget();
+        if (Muxer.ArrayBufferTarget) {
+          muxerTarget = new Muxer.ArrayBufferTarget();
+        } else {
+          muxerTarget = new (Muxer as any).ArrayBufferTarget();
+        }
       }
 
       const MuxerClass = Muxer.Muxer || (Muxer as any).Muxer;
       if (!MuxerClass) throw new Error("Muxer library init failed");
 
-      // FORCE 'fastStart: in-memory'
       muxer = new MuxerClass({
         target: muxerTarget,
         video: { codec: "avc", width, height },
         audio: { codec: "aac", sampleRate, numberOfChannels: 2 },
-        fastStart: "in-memory",
+        fastStart: fileStream ? false : "in-memory",
       });
 
       videoEncoder = new VideoEncoder({
@@ -378,10 +391,18 @@ class RenderService {
     } else {
       // WebM Setup
       let muxerTarget: any;
-      if (WebMMuxer.ArrayBufferTarget) {
-        muxerTarget = new WebMMuxer.ArrayBufferTarget();
+      if (fileStream) {
+        if (WebMMuxer.FileSystemWritableFileStreamTarget) {
+          muxerTarget = new WebMMuxer.FileSystemWritableFileStreamTarget(fileStream);
+        } else {
+          muxerTarget = new (WebMMuxer as any).FileSystemWritableFileStreamTarget(fileStream);
+        }
       } else {
-        muxerTarget = new (WebMMuxer as any).ArrayBufferTarget();
+        if (WebMMuxer.ArrayBufferTarget) {
+          muxerTarget = new WebMMuxer.ArrayBufferTarget();
+        } else {
+          muxerTarget = new (WebMMuxer as any).ArrayBufferTarget();
+        }
       }
 
       const MuxerClass = WebMMuxer.Muxer || (WebMMuxer as any).Muxer;
@@ -1002,21 +1023,27 @@ class RenderService {
       if (stickerBitmap) stickerBitmap.close();
       gifController.dispose();
 
-      // Retrieve the complete file buffer from memory
-      const { buffer } = muxer.target as any;
-      if (!buffer || buffer.byteLength === 0) {
-        throw new Error(
-          "생성된 파일 크기가 0바이트입니다. 메모리 부족 또는 인코딩 오류일 수 있습니다.",
-        );
+      if (fileStream) {
+        // Direct-to-disk: close the stream and return empty URL
+        await fileStream.close();
+        return { url: "", filename: "" };
+      } else {
+        // In-memory: Retrieve the complete file buffer
+        const { buffer } = muxer.target as any;
+        if (!buffer || buffer.byteLength === 0) {
+          throw new Error(
+            "생성된 파일 크기가 0바이트입니다. 메모리 부족 또는 인코딩 오류일 수 있습니다.",
+          );
+        }
+
+        const blob = new Blob([buffer], {
+          type: format === "mp4" ? "video/mp4" : "video/webm",
+        });
+        const url = URL.createObjectURL(blob);
+
+        // Return valid blob URL to be saved by the UI
+        return { url, filename: `SpectrumStudio_Export_${Date.now()}.${format}` };
       }
-
-      const blob = new Blob([buffer], {
-        type: format === "mp4" ? "video/mp4" : "video/webm",
-      });
-      const url = URL.createObjectURL(blob);
-
-      // Return valid blob URL to be saved by the UI
-      return { url, filename: `SpectrumStudio_Export_${Date.now()}.${format}` };
     } catch (e) {
       console.error("Rendering Process Failed", e);
       try {
