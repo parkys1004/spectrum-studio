@@ -46,6 +46,20 @@ const EffectControls: React.FC<EffectControlsProps> = ({
       {/* Visualizer Effects Section */}
       <SectionTitle label="기본 설정 (PARAMETERS)" />
       <div className="px-2">
+         <div className="flex items-center justify-between px-4 py-3 bg-app-bg border-b border-gray-100 hover:bg-gray-50 transition-colors">
+            <span className="text-sm font-medium text-app-text select-none">미리보기 비율</span>
+            <select
+               value={visualizerSettings.resolution || '1080p'}
+               onChange={(e) => handleVisualChange('resolution', e.target.value)}
+               className="text-sm bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-app-text focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-transparent shadow-sm"
+            >
+               <option value="1080p">가로 FHD (16:9)</option>
+               <option value="720p">가로 HD (16:9)</option>
+               <option value="1080p_vertical">세로 FHD (9:16)</option>
+               <option value="720p_vertical">세로 HD (9:16)</option>
+               <option value="1080p_square">정방형 (1:1)</option>
+            </select>
+         </div>
          <ColorRow 
             label="테마 색상"
             value={visualizerSettings.color}
@@ -176,7 +190,7 @@ const EffectControls: React.FC<EffectControlsProps> = ({
                     label="크기"
                     value={visualizerSettings.logoScale || 1.0}
                     min={0.1}
-                    max={3.0}
+                    max={10.0}
                     step={0.01}
                     onChange={(v) => handleVisualChange('logoScale', v)}
                  />
@@ -218,7 +232,7 @@ const EffectControls: React.FC<EffectControlsProps> = ({
                     label="크기"
                     value={visualizerSettings.stickerScale || 1.0}
                     min={0.1}
-                    max={3.0}
+                    max={10.0}
                     step={0.01}
                     onChange={(v) => handleVisualChange('stickerScale', v)}
                  />
