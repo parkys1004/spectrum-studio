@@ -8,7 +8,7 @@ import Modal from "./components/Modal";
 import BentoBox from "./components/layout/BentoBox";
 import { VisualizerMode, VisualizerSettings } from "./types";
 
-// Custom Hooks
+import { Download, ExternalLink } from "lucide-react";
 import { useLibrary } from "./hooks/useLibrary";
 import { useAudioPlayer } from "./hooks/useAudioPlayer";
 import { useExporter } from "./hooks/useExporter";
@@ -576,7 +576,7 @@ const App: React.FC = () => {
             />
 
             {/* Export Overlay */}
-            {isExporting && (
+            {isExporting && !exporter.downloadReady && (
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 pointer-events-none backdrop-blur-sm">
                 <div className="w-[80%] max-w-[300px] flex flex-col items-center">
                   <div className="relative mb-8">
@@ -648,6 +648,54 @@ const App: React.FC = () => {
           </div>
         </BentoBox>
       </div>
+
+      {/* Download Ready Modal */}
+      {exporter.downloadReady && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-[90%] max-w-[500px] flex flex-col items-center bg-app-bg p-8 rounded-3xl shadow-2xl border border-white/10">
+            <h3 className="text-2xl font-bold text-app-text mb-2 tracking-tight text-center">
+              렌더링 완료!
+            </h3>
+            <p className="text-sm text-app-textMuted mb-6 text-center">
+              비디오 파일이 성공적으로 생성되었습니다.<br/>
+              아래 버튼을 누르거나 영상 우측 하단의 점 3개를 눌러 다운로드하세요.
+            </p>
+            
+            <video 
+              src={exporter.downloadReady.url} 
+              controls 
+              className="w-full rounded-xl mb-6 shadow-neu-pressed bg-black"
+              style={{ maxHeight: '250px' }}
+            />
+            
+            <div className="flex flex-col gap-3 w-full">
+              <a
+                href={exporter.downloadReady.url}
+                download={exporter.downloadReady.filename}
+                className="w-full py-3 bg-app-accent text-white rounded-xl font-bold text-lg shadow-neu-flat hover:shadow-neu-pressed transition-all text-center flex items-center justify-center gap-2"
+              >
+                <Download size={20} />
+                파일 다운로드
+              </a>
+              <a
+                href={exporter.downloadReady.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 bg-app-surface text-app-text rounded-xl font-bold text-sm shadow-neu-flat hover:shadow-neu-pressed transition-all text-center flex items-center justify-center gap-2"
+              >
+                <ExternalLink size={16} />
+                새 탭에서 열기 (다운로드 안될 시)
+              </a>
+              <button
+                onClick={exporter.closeDownload}
+                className="w-full py-3 bg-app-bg text-app-text rounded-xl font-medium shadow-neu-flat hover:shadow-neu-pressed transition-all mt-2"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

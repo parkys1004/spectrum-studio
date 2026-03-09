@@ -1,5 +1,7 @@
 import React from "react";
 import { VisualizerMode, VisualizerSettings } from "../types";
+import { SpectrumButton } from "./presets/SpectrumButton";
+import { EffectButton } from "./presets/EffectButton";
 
 interface PresetPanelProps {
   currentMode: VisualizerMode | null;
@@ -24,82 +26,6 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
     });
   };
 
-  // Updated SpectrumButton with toggle logic
-  const SpectrumButton = ({
-    mode,
-    label,
-    icon,
-  }: {
-    mode: VisualizerMode;
-    label: string;
-    icon: React.ReactNode;
-  }) => {
-    const isActive = currentMode === mode;
-    return (
-      <button
-        onClick={() => onModeChange(isActive ? null : mode)}
-        className={`relative w-full aspect-[4/3] rounded-2xl flex flex-col items-center justify-center p-2 transition-all duration-200 group ${
-          isActive
-            ? "bg-app-bg shadow-neu-pressed text-app-accent"
-            : "bg-app-bg shadow-neu-btn text-gray-500 hover:text-gray-700"
-        }`}
-        title={label}
-      >
-        {/* Indicator (Same as EffectButton) */}
-        <div
-          className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full transition-all duration-300 ${isActive ? "bg-app-accent" : "bg-transparent"}`}
-        ></div>
-
-        <div
-          className={`mb-2 transform transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-110"}`}
-        >
-          {icon}
-        </div>
-
-        <span className="text-[11px] font-bold tracking-tight text-center leading-tight">
-          {label}
-        </span>
-      </button>
-    );
-  };
-
-  const EffectButton = ({
-    active,
-    label,
-    onClick,
-    icon,
-  }: {
-    active: boolean;
-    label: string;
-    onClick: () => void;
-    icon?: React.ReactNode;
-  }) => (
-    <button
-      onClick={onClick}
-      className={`relative w-full aspect-[4/3] rounded-2xl flex flex-col items-center justify-center p-2 transition-all duration-200 group ${
-        active
-          ? "bg-app-bg shadow-neu-pressed text-app-accent"
-          : "bg-app-bg shadow-neu-btn text-gray-500 hover:text-gray-700"
-      }`}
-      title={label}
-    >
-      {/* Indicator */}
-      <div
-        className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full transition-all duration-300 ${active ? "bg-app-accent" : "bg-transparent"}`}
-      ></div>
-
-      <div className="mb-2">
-        {icon || (
-          <div className="w-5 h-5 bg-current opacity-20 rounded-sm"></div>
-        )}
-      </div>
-
-      <span className="text-[11px] font-bold tracking-tight text-center leading-tight">
-        {label}
-      </span>
-    </button>
-  );
-
   return (
     <div className="flex flex-col h-full bg-app-bg overflow-y-auto p-1">
       {/* 1. Spectrum Types */}
@@ -112,7 +38,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
 
         {/* Fixed grid to 3 columns */}
         <div className="grid grid-cols-3 gap-4">
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.MONSTERCAT}
             label="MONSTERCAT"
             icon={
@@ -128,7 +54,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.SMOOTH_LINE}
             label="SMOOTH LINE"
             icon={
@@ -144,7 +70,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.SYMMETRIC_WAVE}
             label="SYM WAVE"
             icon={
@@ -161,7 +87,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.FLOWER_PETALS}
             label="FLOWER"
             icon={
@@ -181,7 +107,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.PULSE_CIRCLES}
             label="PULSE"
             icon={
@@ -199,7 +125,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.JELLY_WAVE}
             label="JELLY WAVE"
             icon={
@@ -223,7 +149,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.FLUID}
             label="FLUID"
             icon={
@@ -245,7 +171,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.PARTICLES}
             label="PARTICLES"
             icon={
@@ -265,7 +191,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.DOT_WAVE}
             label="DOT WAVE"
             icon={
@@ -287,7 +213,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.LED_BARS}
             label="LED BARS"
             icon={
@@ -327,7 +253,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.SPECTRUM}
             label="SPECTRUM"
             icon={
@@ -349,7 +275,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.AURORA}
             label="AURORA"
             icon={
@@ -373,7 +299,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.BARS}
             label="BARS"
             icon={
@@ -387,7 +313,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.WAVE}
             label="WAVE"
             icon={
@@ -406,7 +332,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.CIRCULAR}
             label="CIRCLE"
             icon={
@@ -423,7 +349,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.DUAL_BARS}
             label="DUAL"
             icon={
@@ -437,7 +363,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.RIPPLE}
             label="RIPPLE"
             icon={
@@ -455,7 +381,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.PIXEL}
             label="PIXEL"
             icon={
@@ -473,7 +399,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.ROUNDED_BARS}
             label="ROUND BARS"
             icon={
@@ -489,7 +415,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.STARBURST}
             label="BURST"
             icon={
@@ -505,7 +431,7 @@ const PresetPanel: React.FC<PresetPanelProps> = ({
               </svg>
             }
           />
-          <SpectrumButton
+          <SpectrumButton currentMode={currentMode} onModeChange={onModeChange}
             mode={VisualizerMode.BUTTERFLY}
             label="WINGS"
             icon={

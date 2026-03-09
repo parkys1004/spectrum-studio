@@ -6,31 +6,9 @@ import React, {
 } from "react";
 import { audioService } from "../services/audioService";
 import { VisualizerMode, VisualizerSettings } from "../types";
-import {
-  drawBars,
-  drawLine,
-  drawCircle,
-  drawDualBars,
-  drawRipple,
-  drawPixel,
-  drawRoundedBars,
-  drawStarburst,
-  drawButterfly,
-  drawAurora,
-  drawSpectrum,
-  drawDotWave,
-  drawLedBars,
-  drawFluid,
-  drawParticleSpectrum,
-  drawJellyWave,
-  drawPulseCircles,
-  drawFlowerPetals,
-  drawSmoothLine,
-  drawSymmetricWave,
-  drawMonstercat,
-} from "../utils/drawUtils";
 import { EffectRenderer } from "../utils/effectRenderer";
 import { GifController } from "../utils/gifUtils";
+import { renderSpectrum } from "../services/render/spectrumRenderer";
 
 interface VisualizerProps {
   isPlaying: boolean;
@@ -286,254 +264,6 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(
           ctx.fillRect(0, 0, width, height);
         }
 
-        const renderSpectrum = (renderWidth: number, renderHeight: number) => {
-          if (!mode) return;
-          switch (mode) {
-            case VisualizerMode.BARS:
-              drawBars(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.WAVE:
-              drawLine(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.CIRCULAR:
-              drawCircle(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.DUAL_BARS:
-              drawDualBars(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.RIPPLE:
-              drawRipple(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.PIXEL:
-              drawPixel(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.ROUNDED_BARS:
-              drawRoundedBars(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.STARBURST:
-              drawStarburst(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.BUTTERFLY:
-              drawButterfly(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.AURORA:
-              drawAurora(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.SPECTRUM:
-              drawSpectrum(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.DOT_WAVE:
-              drawDotWave(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.LED_BARS:
-              drawLedBars(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.FLUID:
-              drawFluid(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.PARTICLES:
-              drawParticleSpectrum(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.JELLY_WAVE:
-              drawJellyWave(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.PULSE_CIRCLES:
-              drawPulseCircles(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.FLOWER_PETALS:
-              drawFlowerPetals(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.SMOOTH_LINE:
-              drawSmoothLine(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.SYMMETRIC_WAVE:
-              drawSymmetricWave(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            case VisualizerMode.MONSTERCAT:
-              drawMonstercat(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-            default:
-              drawBars(
-                ctx,
-                dataArray,
-                bufferLength,
-                renderWidth,
-                renderHeight,
-                scaledSettings,
-                currentTimestamp,
-              );
-              break;
-          }
-        };
-
         ctx.save();
         ctx.translate(width / 2, height / 2);
         ctx.translate(scaledSettings.positionX, scaledSettings.positionY);
@@ -542,16 +272,16 @@ const Visualizer = forwardRef<HTMLCanvasElement, VisualizerProps>(
         if (scaledSettings.effects.mirror) {
           ctx.save();
           ctx.translate(0, -height / 2);
-          renderSpectrum(width / 2, height);
+          renderSpectrum(mode, ctx, dataArray, width / 2, height, scaledSettings, currentTimestamp);
           ctx.restore();
           ctx.save();
           ctx.scale(-1, 1);
           ctx.translate(0, -height / 2);
-          renderSpectrum(width / 2, height);
+          renderSpectrum(mode, ctx, dataArray, width / 2, height, scaledSettings, currentTimestamp);
           ctx.restore();
         } else {
           ctx.translate(-width / 2, -height / 2);
-          renderSpectrum(width, height);
+          renderSpectrum(mode, ctx, dataArray, width, height, scaledSettings, currentTimestamp);
         }
         ctx.restore();
 
