@@ -113,7 +113,7 @@ class RenderService {
       resolution,
       fps,
       sampleRate,
-      null, // ALWAYS pass null to force in-memory muxing
+      fileStream, // Pass fileStream to enable direct-to-disk muxing
       (e: any) => {
         console.error("Encoder Error", e);
         this.hasEncoderError = true;
@@ -131,7 +131,7 @@ class RenderService {
       positionY: visualizerSettings.positionY * scaleFactor,
     };
 
-    // 3. Setup Muxer & Encoders (FORCE IN-MEMORY)
+    // 3. Setup Muxer & Encoders
 
     const canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext("2d", {
@@ -440,20 +440,24 @@ class RenderService {
       if (stickerBitmap) stickerBitmap.close();
       gifController.dispose();
 
-      // In-memory: Retrieve the complete file buffer
-      const { buffer } = muxer.target as any;
-      if (!buffer || buffer.byteLength === 0) {
-        throw new Error(
-          "생성된 파일 크기가 0바이트입니다. 메모리 부족 또는 인코딩 오류일 수 있습니다.",
-        );
-      }
-
       if (fileStream) {
-        // Direct-to-disk: write the buffer and close the stream
-        await fileStream.write(buffer);
-        await fileStream.close();
+        // Direct-to-disk: muxer already wrote to the stream and finalized it.
+        // Some muxers close the stream automatically, so we wrap in try-catch.
+        try {
+          await fileStream.close();
+        } catch (e) {
+          // Ignore if already closed
+        }
         return { url: "", filename: "" };
       } else {
+        // In-memory: Retrieve the complete file buffer
+        const { buffer } = muxer.target as any;
+        if (!buffer || buffer.byteLength === 0) {
+          throw new Error(
+            "생성된 파일 크기가 0바이트입니다. 메모리 부족 또는 인코딩 오류일 수 있습니다.",
+          );
+        }
+
         const blob = new Blob([buffer], {
           type: format === "mp4" ? "video/mp4" : "video/webm",
         });
