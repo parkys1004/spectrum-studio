@@ -1,6 +1,14 @@
 // @ts-nocheck
-import * as Muxer from "mp4-muxer";
-import * as WebMMuxer from "webm-muxer";
+import {
+  Output,
+  Mp4OutputFormat,
+  WebMOutputFormat,
+  BufferTarget,
+  StreamTarget,
+  EncodedVideoPacketSource,
+  EncodedAudioPacketSource,
+  EncodedPacket
+} from "mediabunny";
 
 export const setupEncoders = (
   format: "mp4" | "webm",
@@ -42,39 +50,34 @@ export const setupEncoders = (
       break;
   }
 
-  let muxer: any;
+  let muxerTarget: any;
+  if (fileStream) {
+    muxerTarget = new StreamTarget(fileStream);
+  } else {
+    muxerTarget = new BufferTarget();
+  }
+
+  let outputFormat = format === "mp4" ? new Mp4OutputFormat() : new WebMOutputFormat();
+  
+  let output = new Output({
+    format: outputFormat,
+    target: muxerTarget
+  });
+
+  let videoSource = new EncodedVideoPacketSource(format === "mp4" ? "avc" : "vp9");
+  let audioSource = new EncodedAudioPacketSource(format === "mp4" ? "aac" : "opus");
+
+  output.addVideoTrack(videoSource, { width, height, frameRate: fps });
+  output.addAudioTrack(audioSource, { sampleRate, numberOfChannels: 2 });
+
+  output.start();
+
   let videoEncoder: VideoEncoderWithState;
   let audioEncoder: AudioEncoder;
 
   if (format === "mp4") {
-    let muxerTarget: any;
-
-    if (fileStream) {
-      if (Muxer.FileSystemWritableFileStreamTarget) {
-        muxerTarget = new Muxer.FileSystemWritableFileStreamTarget(fileStream);
-      } else {
-        muxerTarget = new (Muxer as any).FileSystemWritableFileStreamTarget(fileStream);
-      }
-    } else {
-      if (Muxer.ArrayBufferTarget) {
-        muxerTarget = new Muxer.ArrayBufferTarget();
-      } else {
-        muxerTarget = new (Muxer as any).ArrayBufferTarget();
-      }
-    }
-
-    const MuxerClass = Muxer.Muxer || (Muxer as any).Muxer;
-    if (!MuxerClass) throw new Error("Muxer library init failed");
-
-    muxer = new MuxerClass({
-      target: muxerTarget,
-      video: { codec: "avc", width, height },
-      audio: { codec: "aac", sampleRate, numberOfChannels: 2 },
-      fastStart: fileStream ? false : "in-memory",
-    });
-
     videoEncoder = new VideoEncoder({
-      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      output: (chunk, meta) => videoSource.add(EncodedPacket.fromEncodedChunk(chunk), meta),
       error: onError,
     }) as VideoEncoderWithState;
 
@@ -102,7 +105,7 @@ export const setupEncoders = (
     }
 
     audioEncoder = new AudioEncoder({
-      output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+      output: (chunk, meta) => audioSource.add(EncodedPacket.fromEncodedChunk(chunk), meta),
       error: onError,
     });
 
@@ -113,33 +116,8 @@ export const setupEncoders = (
       bitrate: 128_000,
     });
   } else {
-    // WebM Setup
-    let muxerTarget: any;
-    if (fileStream) {
-      if (WebMMuxer.FileSystemWritableFileStreamTarget) {
-        muxerTarget = new WebMMuxer.FileSystemWritableFileStreamTarget(fileStream);
-      } else {
-        muxerTarget = new (WebMMuxer as any).FileSystemWritableFileStreamTarget(fileStream);
-      }
-    } else {
-      if (WebMMuxer.ArrayBufferTarget) {
-        muxerTarget = new WebMMuxer.ArrayBufferTarget();
-      } else {
-        muxerTarget = new (WebMMuxer as any).ArrayBufferTarget();
-      }
-    }
-
-    const MuxerClass = WebMMuxer.Muxer || (WebMMuxer as any).Muxer;
-    if (!MuxerClass) throw new Error("WebM Muxer library init failed");
-
-    muxer = new MuxerClass({
-      target: muxerTarget,
-      video: { codec: "V_VP9", width, height, frameRate: fps },
-      audio: { codec: "A_OPUS", sampleRate, numberOfChannels: 2 },
-    });
-
     videoEncoder = new VideoEncoder({
-      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      output: (chunk, meta) => videoSource.add(EncodedPacket.fromEncodedChunk(chunk), meta),
       error: onError,
     }) as VideoEncoderWithState;
 
@@ -152,7 +130,7 @@ export const setupEncoders = (
     });
 
     audioEncoder = new AudioEncoder({
-      output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+      output: (chunk, meta) => audioSource.add(EncodedPacket.fromEncodedChunk(chunk), meta),
       error: onError,
     });
 
@@ -163,6 +141,12 @@ export const setupEncoders = (
       bitrate: 128_000,
     });
   }
+
+  // Mock the old muxer interface so renderService.ts doesn't break
+  const muxer = {
+    finalize: () => output.finalize(),
+    target: muxerTarget
+  };
 
   return { muxer, videoEncoder, audioEncoder, width, height };
 };

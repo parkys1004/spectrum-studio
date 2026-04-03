@@ -1,9 +1,5 @@
 // @ts-nocheck
 import { Track, VisualizerSettings, VisualizerMode } from "../../types";
-// @ts-ignore
-import * as Muxer from "mp4-muxer";
-// @ts-ignore
-import * as WebMMuxer from "webm-muxer";
 import { EffectRenderer } from "../../utils/effectRenderer";
 import { renderSpectrum } from "./spectrumRenderer";
 import { loadAudioBuffers } from "./audioDecoder";
@@ -72,8 +68,36 @@ class RenderService {
 
     // 2. Setup Offline Context
     const sampleRate = 44100;
+    const frameCount = Math.ceil(sampleRate * totalDuration);
+
+    let offlineCtx: OfflineAudioContext;
+    try {
+      offlineCtx = new OfflineAudioContext(2, frameCount, sampleRate);
+    } catch (e) {
+      throw new Error(
+        "메모리 부족으로 오디오 처리를 시작할 수 없습니다. 트랙 수를 줄여 다시 시도해주세요.",
+      );
+    }
+
+    // 4. Setup Visualization Environment
+    const analyser = offlineCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = visualizerSettings.sensitivity;
+    
+    // Connect analyser to destination so audio flows through it to the final rendered buffer
+    analyser.connect(offlineCtx.destination);
+
+    const frequencyDataHistory: { time: number; freq: Uint8Array; timeDomain: Uint8Array }[] = [];
+    
+    let offset = 0;
+    validBuffers.forEach((buf) => {
+      const source = offlineCtx.createBufferSource();
+      source.buffer = buf;
+      source.connect(analyser); // Connect source to analyser
+      source.start(offset);
+      offset += buf.duration;
+    });
     const fps = 30;
-    const totalFrames = Math.ceil(totalDuration * fps);
 
     let fileStream: any = null;
     if (fileHandle) {
@@ -164,6 +188,7 @@ class RenderService {
     }
 
     // 5. Render Processor
+    const totalFrames = Math.ceil(totalDuration * fps);
     let startTime = 0;
 
     try {
@@ -365,89 +390,92 @@ class RenderService {
         ctx.restore();
 
         const frame = new VideoFrame(canvas, {
-          timestamp: globalFrameIndex * (1_000_000 / fps),
+          timestamp: i * (1_000_000 / fps),
           duration: 1_000_000 / fps,
         });
 
         try {
-          const keyFrame = globalFrameIndex % 60 === 0;
+          const keyFrame = i % 60 === 0;
           videoEncoder.encode(frame, { keyFrame });
         } catch (e) {
           console.error("Frame encoding failed", e);
         }
         frame.close();
       }
-    }
 
-    // --- Finalize Video ---
-    onProgress(totalFrames, totalFrames, "비디오 인코딩 정리 중...");
-    try {
-      await videoEncoder.flush();
-    } catch (e) {
-      console.warn("Video flush warning:", e);
-    }
-    videoEncoder.close();
-
-    // --- Finalize Audio ---
-    try {
-      await audioEncoder.flush();
-    } catch (e) {
-      console.warn("Audio flush warning:", e);
-    }
-    audioEncoder.close();
-
-    try {
-      muxer.finalize();
-    } catch (e) {
-      console.error("Muxer finalize error", e);
-      throw new Error("파일 생성 마무리 단계에서 오류가 발생했습니다.");
-    }
-
-    if (bgBitmap) bgBitmap.close();
-    if (logoBitmap) logoBitmap.close();
-    if (stickerBitmap) stickerBitmap.close();
-    gifController.dispose();
-
-    if (fileStream) {
-      // Direct-to-disk: muxer already wrote to the stream and finalized it.
-      // Some muxers close the stream automatically, so we wrap in try-catch.
+      // --- Finalize Video ---
+      onProgress(totalFrames, totalFrames, "비디오 인코딩 정리 중...");
       try {
-        await fileStream.close();
+        await videoEncoder.flush();
       } catch (e) {
-        // Ignore if already closed
+        console.warn("Video flush warning:", e);
       }
-      return { url: "", filename: "" };
-    } else {
-      // In-memory: Retrieve the complete file buffer
-      const { buffer } = muxer.target as any;
-      if (!buffer || buffer.byteLength === 0) {
-        throw new Error(
-          "생성된 파일 크기가 0바이트입니다. 메모리 부족 또는 인코딩 오류일 수 있습니다.",
-        );
-      }
-
-      const blob = new Blob([buffer], {
-        type: format === "mp4" ? "video/mp4" : "video/webm",
-      });
-      const url = URL.createObjectURL(blob);
-
-      const now = new Date();
-      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-
-      // Return valid blob URL to be saved by the UI
-      return { url, filename: `SpectrumStudio_Export_${dateStr}.${format}` };
-    }
-  } catch (e) {
-    console.error("Rendering Process Failed", e);
-    try {
       videoEncoder.close();
-    } catch {}
-    try {
-      audioEncoder.close();
-    } catch {}
-    throw e;
+
+      // --- Chunked Audio Encoding ---
+      onProgress(totalFrames, totalFrames, "오디오 트랙 처리 및 저장 중...");
+
+      await encodeAudioChunks(
+        renderedBuffer,
+        audioEncoder,
+        sampleRate,
+        onProgress,
+        this.waitForQueue.bind(this),
+        () => this.hasEncoderError
+      );
+
+      try {
+        muxer.finalize();
+      } catch (e) {
+        console.error("Muxer finalize error", e);
+        throw new Error("파일 생성 마무리 단계에서 오류가 발생했습니다.");
+      }
+
+      if (bgBitmap) bgBitmap.close();
+      if (logoBitmap) logoBitmap.close();
+      if (stickerBitmap) stickerBitmap.close();
+      gifController.dispose();
+
+      if (fileStream) {
+        // Direct-to-disk: muxer already wrote to the stream and finalized it.
+        // Some muxers close the stream automatically, so we wrap in try-catch.
+        try {
+          await fileStream.close();
+        } catch (e) {
+          // Ignore if already closed
+        }
+        return { url: "", filename: "" };
+      } else {
+        // In-memory: Retrieve the complete file buffer
+        const { buffer } = muxer.target as any;
+        if (!buffer || buffer.byteLength === 0) {
+          throw new Error(
+            "생성된 파일 크기가 0바이트입니다. 메모리 부족 또는 인코딩 오류일 수 있습니다.",
+          );
+        }
+
+        const blob = new Blob([buffer], {
+          type: format === "mp4" ? "video/mp4" : "video/webm",
+        });
+        const url = URL.createObjectURL(blob);
+
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+
+        // Return valid blob URL to be saved by the UI
+        return { url, filename: `SpectrumStudio_Export_${dateStr}.${format}` };
+      }
+    } catch (e) {
+      console.error("Rendering Process Failed", e);
+      try {
+        videoEncoder.close();
+      } catch {}
+      try {
+        audioEncoder.close();
+      } catch {}
+      throw e;
+    }
   }
-}
 
   cancel() {
     if (this.abortController) this.abortController.abort();
