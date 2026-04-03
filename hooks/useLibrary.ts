@@ -179,7 +179,7 @@ export const useLibrary = () => {
 
   const handleDeleteSelectedTracks = useCallback(async () => {
       try {
-          const idsToDelete = Array.from(selectedTrackIds);
+          const idsToDelete = Array.from<string>(selectedTrackIds);
           
           // 1. Remove from Storage
           await Promise.all(idsToDelete.map(id => storageService.deleteFile(id)));
