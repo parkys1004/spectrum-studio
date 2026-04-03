@@ -5,7 +5,8 @@ export const encodeAudioChunks = async (
   sampleRate: number,
   onProgress: (current: number, total: number, phase: string) => void,
   waitForQueue: (encoder: any, limit: number) => Promise<void>,
-  hasEncoderError: () => boolean
+  hasEncoderError: () => boolean,
+  startTimestamp: number = 0
 ) => {
   const CHUNK_DURATION_SEC = 0.5;
   const chunkFrames = Math.floor(sampleRate * CHUNK_DURATION_SEC);
@@ -33,7 +34,7 @@ export const encodeAudioChunks = async (
         sampleRate: sampleRate,
         numberOfFrames: framesToEncode,
         numberOfChannels: 2,
-        timestamp: (i / sampleRate) * 1_000_000,
+        timestamp: startTimestamp + (i / sampleRate) * 1_000_000,
         data: chunkBuffer,
       });
 
